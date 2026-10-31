@@ -1,0 +1,34 @@
+Motor Agéntico para Recursos Mínimos
+1. Ejecutar Agente en Proyecto Existente
+2. Generar Estructura de Nuevo Proyecto
+3. Ejecutar Prueba de Rendimiento de Hardware
+Elección:
+Ingrese la ruta absoluta del proyecto:
+Preparando prueba. Descargando micro-modelo...
+Ejecutando prueba de tensores (Calculando Tokens/Seg)...
+¡Prueba Completada! Capacidad de procesamiento:
+Inicializando nuevo árbol de proyecto en:
+ÉXITO: ¡Proyecto inicializado! Por favor complete context.md y tasks.txt.
+Error: tasks.txt no encontrado.
+>>> Siguiente Tarea:
+Iniciando Agente...
+Agente terminado.
+0. Salir
+Ingrese su nombre:
+Bienvenido,
+Hasta luego,
+Modelo recomendado para su hardware:
+Opción inválida.
+Proyectos conocidos:
+4. Importar Plantilla de Proyecto Completada
+Plantilla generada en:
+Ya existe una plantilla en:
+Complétela y luego elija la opción de importar.
+Ingrese la ruta de la plantilla completada:
+Error en la plantilla:
+Proyecto registrado:
+Tarea completada:
+Tarea fallida:
+Todas las tareas finalizadas.
+Ejecutando sin supervisión. Presione Ctrl+C para detener.
+Error: Ollama no está instalado. Instálelo con:

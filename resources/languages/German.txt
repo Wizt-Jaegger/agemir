@@ -1,0 +1,34 @@
+Agentische Engine für Minimale Ressourcen
+1. Agent für bestehendes Projekt ausführen
+2. Neues Projektgerüst generieren
+3. Hardware-Benchmark ausführen
+Auswahl:
+Geben Sie den absoluten Projektpfad ein:
+Vorbereitung des Benchmarks. Mikro-Modell wird heruntergeladen...
+Tensor-Benchmark wird ausgeführt (Tokens/Sekunde berechnen)...
+Benchmark abgeschlossen! Verarbeitungskapazität:
+Neuer Projektbaum wird initialisiert unter:
+ERFOLG: Projekt initialisiert! Bitte context.md und tasks.txt ausfüllen.
+Fehler: tasks.txt nicht gefunden.
+>>> Nächste Aufgabe:
+Agent wird gestartet...
+Agent beendet.
+0. Beenden
+Geben Sie Ihren Namen ein:
+Willkommen,
+Auf Wiedersehen,
+Empfohlenes Modell für Ihre Hardware:
+Ungültige Option.
+Bekannte Projekte:
+4. Ausgefüllte Projektvorlage importieren
+Vorlage erstellt unter:
+Eine Vorlage existiert bereits unter:
+Füllen Sie sie aus und wählen Sie dann die Importoption.
+Pfad der ausgefüllten Vorlage eingeben:
+Fehler in der Vorlage:
+Projekt registriert:
+Aufgabe abgeschlossen:
+Aufgabe fehlgeschlagen:
+Alle Aufgaben abgeschlossen.
+Läuft ohne Aufsicht. Drücken Sie Strg+C zum Beenden.
+Fehler: Ollama ist nicht installiert. Installieren mit:

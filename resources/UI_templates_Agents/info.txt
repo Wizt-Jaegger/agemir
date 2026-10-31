@@ -1,0 +1,2 @@
+this folder is for us to add templates of user interfaces for the agents to take as a guideline remember it's easier for any AI generated UI to look better if it has a guideline
+try adding stuff like login-menus, navbars, hamburger menus, and general UI that fits your project

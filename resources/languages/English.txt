@@ -1,0 +1,34 @@
+Agentic Engine for Minimal Resources
+1. Run Agent on Existing Project
+2. Generate New Project Scaffold
+3. Run Hardware Benchmark
+Choice:
+Enter absolute project path:
+Preparing benchmark. Downloading micro-model...
+Running tensor benchmark (Calculating Tokens/Sec)...
+Benchmark Complete! Processing capability:
+Initializing new project tree at:
+SUCCESS: Project initialized! Please fill out context.md and tasks.txt.
+Error: tasks.txt not found.
+>>> Next Task:
+Spawning Agent...
+Agent terminated.
+0. Exit
+Enter your name:
+Welcome,
+Goodbye,
+Recommended model for your hardware:
+Invalid option.
+Known projects:
+4. Import Filled Project Template
+Template generated at:
+A template already exists at:
+Fill it in, then choose the import option.
+Enter the path of the filled template:
+Template error:
+Project registered:
+Task completed:
+Task failed:
+All tasks finished.
+Running without supervision. Press Ctrl+C to stop.
+Error: Ollama is not installed. Install it with:

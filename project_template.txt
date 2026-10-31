@@ -1,0 +1,41 @@
+# ==========================================
+#   Agemir Project Template
+# ==========================================
+# Fill in the fields below, save the file, then import it from the Agemir menu.
+# Lines starting with # are comments and are ignored.
+# Field names must stay in UPPERCASE. OBJECTIVE, TECH_STACK and RULES can be
+# repeated to add more lines.
+#
+# Tips for low-end hardware:
+#   - Keep every TASK small: ONE file, ONE clear job.
+#   - READS shows the model other project files it depends on (comma separated).
+#   - VERIFY is a shell command that exits with 0 when the file is correct
+#     (a syntax check, a test...). If it fails, Agemir retries the task and
+#     gives the model the error output.
+#   - FILE and READS are relative to the project folder.
+
+PROJECT_NAME:
+OBJECTIVE:
+TECH_STACK:
+RULES:
+
+# Optional: code snippets or style guides the model should imitate.
+# Paste them between STYLE: and END_STYLE (copied as-is, comments included).
+STYLE:
+END_STYLE
+
+# Each GOAL groups related TASKs. Each TASK needs a FILE (the file the model writes).
+# READS and VERIFY are optional. Example:
+#
+# GOAL: Core logic
+# TASK: Write a function add(a, b) that returns the sum of two numbers
+# FILE: src/calculator.py
+# VERIFY: python3 -m py_compile src/calculator.py
+# TASK: Write the entry point that prints add(2, 3)
+# FILE: src/main.py
+# READS: src/calculator.py
+# VERIFY: python3 src/main.py
+#
+# GOAL: Documentation
+# TASK: Write a short README explaining how to run the program
+# FILE: README.md

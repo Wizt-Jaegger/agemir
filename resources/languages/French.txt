@@ -1,0 +1,34 @@
+Moteur Agentique pour Ressources Minimales
+1. Exécuter l'Agent sur un Projet Existant
+2. Générer la Structure du Nouveau Projet
+3. Exécuter le Test de Performance Matérielle
+Choix:
+Entrez le chemin absolu du projet:
+Préparation du test. Téléchargement du micro-modèle...
+Exécution du test tensoriel (Calcul des Tokens/Sec)...
+Test Terminé ! Capacité de traitement :
+Initialisation du nouvel arbre de projet à :
+SUCCÈS : Projet initialisé ! Veuillez remplir context.md et tasks.txt.
+Erreur : tasks.txt introuvable.
+>>> Tâche Suivante:
+Lancement de l'Agent...
+Agent terminé.
+0. Quitter
+Entrez votre nom :
+Bienvenue,
+Au revoir,
+Modèle recommandé pour votre matériel :
+Option invalide.
+Projets connus :
+4. Importer le Modèle de Projet Rempli
+Modèle généré à :
+Un modèle existe déjà à :
+Remplissez-le, puis choisissez l'option d'importation.
+Entrez le chemin du modèle rempli :
+Erreur dans le modèle :
+Projet enregistré :
+Tâche terminée :
+Tâche échouée :
+Toutes les tâches sont terminées.
+Exécution sans supervision. Appuyez sur Ctrl+C pour arrêter.
+Erreur : Ollama n'est pas installé. Installez-le avec :
