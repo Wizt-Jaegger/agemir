@@ -32,3 +32,33 @@ Tâche échouée :
 Toutes les tâches sont terminées.
 Exécution sans supervision. Appuyez sur Ctrl+C pour arrêter.
 Erreur : Ollama n'est pas installé. Installez-le avec :
+5. Générer un Projet à partir d'une Description
+6. Paramètres
+--- Paramètres ---
+1. Changer le nom
+2. Changer la langue
+3. Changer le modèle
+0. Retour
+Nom actuel :
+Modèle actuel :
+Auto (recommandé pour cette machine)
+Autre (saisir une étiquette de modèle)
+Entrez l'étiquette du modèle :
+Enregistré.
+Installer Ollama maintenant ? [o/n]
+Installation d'Ollama...
+Démarrage du serveur Ollama...
+Erreur : Ollama n'a pas pu être démarré.
+ARRÊTÉ : la tâche continue d'échouer. Corrigez le problème et relancez l'agent ; il reprendra à cette tâche.
+Journaux :
+En pause. Relancez l'agent pour reprendre.
+Reprise à partir de :
+Erreur Ollama :
+Conseil : choisissez un modèle plus petit dans les Paramètres.
+Tentative
+Nom du projet (lettres, chiffres, _ et -) :
+Décrivez votre projet : ce qu'il fait, ses fonctionnalités et technologies. Terminez par une ligne vide :
+Est-ce un projet graphique avec une interface utilisateur ? [o/n]
+Génération du modèle de projet avec l'agent...
+Impossible de générer un modèle valide. Corrigez ce fichier à la main et importez-le :
+Modèles [OK = tient dans votre RAM, X = trop gros] (RAM requise, vitesse estimée ici) :

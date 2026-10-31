@@ -32,3 +32,33 @@ Task failed:
 All tasks finished.
 Running without supervision. Press Ctrl+C to stop.
 Error: Ollama is not installed. Install it with:
+5. Generate Project From a Description
+6. Settings
+--- Settings ---
+1. Change name
+2. Change language
+3. Change model
+0. Back
+Current name:
+Current model:
+Auto (recommended for this machine)
+Other (type a model tag)
+Enter the model tag:
+Saved.
+Install Ollama now? [y/n]
+Installing Ollama...
+Starting the Ollama server...
+Error: Ollama could not be started.
+STOPPED: the task kept failing. Fix the problem and run the agent again; it resumes from this task.
+Logs:
+Paused. Run the agent again to resume.
+Resuming from:
+Ollama error:
+Tip: choose a smaller model in Settings.
+Attempt
+Project name (letters, numbers, _ and -):
+Describe your project: what it does, its features and technologies. Finish with an empty line:
+Is it a graphical project with a user interface? [y/n]
+Generating the project template with the agent...
+Could not generate a valid template. Fix this file by hand and import it:
+Models [OK = fits in your RAM, X = too big] (RAM needed, estimated speed here):

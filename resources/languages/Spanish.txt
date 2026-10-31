@@ -32,3 +32,33 @@ Tarea fallida:
 Todas las tareas finalizadas.
 Ejecutando sin supervisión. Presione Ctrl+C para detener.
 Error: Ollama no está instalado. Instálelo con:
+5. Generar Proyecto a Partir de una Descripción
+6. Ajustes
+--- Ajustes ---
+1. Cambiar nombre
+2. Cambiar idioma
+3. Cambiar modelo
+0. Volver
+Nombre actual:
+Modelo actual:
+Automático (recomendado para esta máquina)
+Otro (escriba una etiqueta de modelo)
+Ingrese la etiqueta del modelo:
+Guardado.
+¿Instalar Ollama ahora? [s/n]
+Instalando Ollama...
+Iniciando el servidor de Ollama...
+Error: no se pudo iniciar Ollama.
+DETENIDO: la tarea siguió fallando. Corrija el problema y ejecute el agente de nuevo; continuará desde esta tarea.
+Registros:
+En pausa. Ejecute el agente de nuevo para reanudar.
+Reanudando desde:
+Error de Ollama:
+Consejo: elija un modelo más pequeño en Ajustes.
+Intento
+Nombre del proyecto (letras, números, _ y -):
+Describa su proyecto: qué hace, sus funciones y tecnologías. Termine con una línea vacía:
+¿Es un proyecto gráfico con interfaz de usuario? [s/n]
+Generando la plantilla del proyecto con el agente...
+No se pudo generar una plantilla válida. Corrija este archivo a mano e impórtelo:
+Modelos [OK = cabe en su RAM, X = demasiado grande] (RAM necesaria, velocidad estimada aquí):

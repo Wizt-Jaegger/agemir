@@ -10,6 +10,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <signal.h>
 #include <sys/stat.h>
 
 // Set to 1 (or compile with -DOLLAMA_ENABLED=1) to call Ollama for real.
@@ -23,34 +24,47 @@
 // ==========================================
 #if defined(_WIN32)
 #include <direct.h>
+#include <windows.h>
 #define OS_NAME "Windows"
 #define MKDIR(path) _mkdir(path)
 #define POPEN _popen
 #define PCLOSE _pclose
-#define INSTALL_OLLAMA "winget install ollama"
+#define START_OLLAMA_SERVER "start /B ollama serve > NUL 2>&1"
+#define LIST_DIR_FORMAT "dir /b \"%s\" 2> NUL"
 #define DEV_NULL " > NUL 2>&1"
 #define CLEAN "cls"
 #define VERIFY_COMMAND_FORMAT "cd /d \"%s\" && (%s) > \"%s\" 2>&1"
+#ifndef INSTALL_OLLAMA
+#define INSTALL_OLLAMA "winget install ollama"
+#endif
 #else
 #include <unistd.h>
+#include <sys/wait.h>
 #define OS_NAME "Linux/macOS"
 #define MKDIR(path) mkdir(path, 0777)
 #define POPEN popen
 #define PCLOSE pclose
-#define INSTALL_OLLAMA "curl -fsSL https://ollama.com/install.sh | sh"
+#define START_OLLAMA_SERVER "ollama serve > /dev/null 2>&1 &"
+#define LIST_DIR_FORMAT "ls -1 \"%s\" 2>/dev/null"
 #define DEV_NULL " > /dev/null 2>&1"
 #define CLEAN "clear"
 #define VERIFY_COMMAND_FORMAT "cd \"%s\" && (%s) > \"%s\" 2>&1"
+#ifndef INSTALL_OLLAMA
+#define INSTALL_OLLAMA "curl -fsSL https://ollama.com/install.sh | sh"
+#endif
 #endif
 
 #define CONFIG_DIR "resources/config"
 #define CONFIG_PATH CONFIG_DIR "/config.txt"
-#define CONFIG_TMP_PATH CONFIG_PATH ".tmp"
 #define CONFIG_LINE 1024
+#define MODELS_PATH "resources/models.txt"
 #define TEMPLATE_SOURCE "resources/templates/project_template.txt"
+#define EXAMPLE_TEMPLATE_PATH "resources/templates/example_template.txt"
 #define TEMPLATE_OUTPUT "project_template.txt"
+#define UI_TEMPLATES_DIR "resources/UI_templates_Agents"
+#define ASSET_SOURCES_PATH "resources/internet-sources.txt"
 #define MAX_FILE_BYTES (64L * 1024 * 1024)
-#define UI_STRING_COUNT 34
+#define UI_STRING_COUNT 64
 
 // ==========================================
 //      Global State
@@ -92,8 +106,38 @@ static const char* const DEFAULT_STRINGS[UI_STRING_COUNT] = {
     "Task completed:",
     "Task failed:",
     "All tasks finished.",
-    "Running without supervision. Press Ctrl+C to stop.",
+    "Running without supervision. Press Ctrl+C to pause.",
     "Error: Ollama is not installed. Install it with:",
+    "5. Generate Project From a Description",
+    "6. Settings",
+    "--- Settings ---",
+    "1. Change name",
+    "2. Change language",
+    "3. Change model",
+    "0. Back",
+    "Current name:",
+    "Current model:",
+    "Auto (recommended for this machine)",
+    "Other (type a model tag)",
+    "Enter the model tag:",
+    "Saved.",
+    "Install Ollama now? [y/n]",
+    "Installing Ollama...",
+    "Starting the Ollama server...",
+    "Error: Ollama could not be started.",
+    "STOPPED: the task kept failing. Fix the problem and run the agent again; it resumes from this task.",
+    "Logs:",
+    "Paused. Run the agent again to resume.",
+    "Resuming from:",
+    "Ollama error:",
+    "Tip: choose a smaller model in Settings.",
+    "Attempt",
+    "Project name (letters, numbers, _ and -):",
+    "Describe your project: what it does, its features and technologies. Finish with an empty line:",
+    "Is it a graphical project with a user interface? [y/n]",
+    "Generating the project template with the agent...",
+    "Could not generate a valid template. Fix this file by hand and import it:",
+    "Models [OK = fits in your RAM, X = too big] (RAM needed, estimated speed here):",
 };
 
 // ==========================================
@@ -117,6 +161,15 @@ void wait_for_enter() {
     char discard[8];
     printf("\n[Enter]");
     read_line(discard, sizeof(discard));
+}
+
+int ask_yes_no(const char* prompt) {
+    char line[16];
+    printf("%s ", prompt);
+    read_line(line, sizeof(line));
+
+    char first = (char)tolower((unsigned char)line[0]);
+    return first == 'y' || first == 's' || first == 'o' || first == 'j' || strncmp(line, "はい", 6) == 0;
 }
 
 // ==========================================
@@ -153,6 +206,10 @@ int is_safe_relative_path(const char* path) {
     return 1;
 }
 
+void join_path(char* out, size_t size, const char* base, const char* name) {
+    snprintf(out, size, "%s/%s", base, name);
+}
+
 void resolve_path(const char* path, char* resolved, size_t size) {
     char buffer[4096];
 #if defined(_WIN32)
@@ -164,6 +221,42 @@ void resolve_path(const char* path, char* resolved, size_t size) {
     } else {
         snprintf(resolved, size, "%s", path);
     }
+}
+
+void sleep_seconds(int seconds) {
+#if defined(_WIN32)
+    Sleep((DWORD)seconds * 1000);
+#else
+    sleep((unsigned int)seconds);
+#endif
+}
+
+// Total physical memory in MB, 0 when it cannot be read.
+long total_ram_mb() {
+#if defined(_WIN32)
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    return GlobalMemoryStatusEx(&status) ? (long)(status.ullTotalPhys / (1024 * 1024)) : 0;
+#elif defined(__APPLE__)
+    long long bytes = 0;
+    FILE *pipe = POPEN("sysctl -n hw.memsize 2>/dev/null", "r");
+    if (pipe) {
+        if (fscanf(pipe, "%lld", &bytes) != 1) bytes = 0;
+        PCLOSE(pipe);
+    }
+    return (long)(bytes / (1024 * 1024));
+#else
+    FILE *f = fopen("/proc/meminfo", "r");
+    if (!f) return 0;
+
+    char line[256];
+    long kilobytes = 0;
+    while (fgets(line, sizeof(line), f)) {
+        if (sscanf(line, "MemTotal: %ld kB", &kilobytes) == 1) break;
+    }
+    fclose(f);
+    return kilobytes / 1024;
+#endif
 }
 
 // ==========================================
@@ -253,11 +346,12 @@ int write_text_file(const char* path, const char* content) {
 }
 
 // ==========================================
-//      Config File (resources/config/config.txt)
-//      One "key:value" per line. Projects are stored as "project:NAME:PATH".
+//      Key/Value Files
+//      One "key:value" per line. The config file and every project
+//      progress state use this format.
 // ==========================================
-int config_get(const char* key, char* value, size_t size) {
-    FILE *f = fopen(CONFIG_PATH, "r");
+int kv_get(const char* file, const char* key, char* value, size_t size) {
+    FILE *f = fopen(file, "r");
     if (!f) return 0;
 
     char line[CONFIG_LINE];
@@ -275,16 +369,14 @@ int config_get(const char* key, char* value, size_t size) {
     return found;
 }
 
-int config_get_int(const char* key, int fallback) {
-    char value[32];
-    return config_get(key, value, sizeof(value)) ? atoi(value) : fallback;
-}
+void kv_set(const char* file, const char* key, const char* value) {
+    make_parent_dirs(file);
 
-void config_set(const char* key, const char* value) {
-    MKDIR(CONFIG_DIR);
+    char temporary[1100];
+    snprintf(temporary, sizeof(temporary), "%s.tmp", file);
 
-    FILE *in = fopen(CONFIG_PATH, "r");
-    FILE *out = fopen(CONFIG_TMP_PATH, "w");
+    FILE *in = fopen(file, "r");
+    FILE *out = fopen(temporary, "w");
     if (!out) {
         if (in) fclose(in);
         return;
@@ -302,8 +394,25 @@ void config_set(const char* key, const char* value) {
     fprintf(out, "%s:%s\n", key, value);
     fclose(out);
 
-    remove(CONFIG_PATH);
-    rename(CONFIG_TMP_PATH, CONFIG_PATH);
+    remove(file);
+    rename(temporary, file);
+}
+
+// ==========================================
+//      Config File (resources/config/config.txt)
+//      Keys: language, username, benchmark, model, project:NAME (value = PATH).
+// ==========================================
+int config_get(const char* key, char* value, size_t size) {
+    return kv_get(CONFIG_PATH, key, value, size);
+}
+
+int config_get_int(const char* key, int fallback) {
+    char value[32];
+    return config_get(key, value, sizeof(value)) ? atoi(value) : fallback;
+}
+
+void config_set(const char* key, const char* value) {
+    kv_set(CONFIG_PATH, key, value);
 }
 
 void config_set_int(const char* key, int value) {

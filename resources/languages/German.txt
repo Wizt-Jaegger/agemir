@@ -32,3 +32,33 @@ Aufgabe fehlgeschlagen:
 Alle Aufgaben abgeschlossen.
 Läuft ohne Aufsicht. Drücken Sie Strg+C zum Beenden.
 Fehler: Ollama ist nicht installiert. Installieren mit:
+5. Projekt aus einer Beschreibung erzeugen
+6. Einstellungen
+--- Einstellungen ---
+1. Namen ändern
+2. Sprache ändern
+3. Modell ändern
+0. Zurück
+Aktueller Name:
+Aktuelles Modell:
+Automatisch (empfohlen für diesen Rechner)
+Andere (Modell-Tag eingeben)
+Modell-Tag eingeben:
+Gespeichert.
+Ollama jetzt installieren? [j/n]
+Ollama wird installiert...
+Ollama-Server wird gestartet...
+Fehler: Ollama konnte nicht gestartet werden.
+GESTOPPT: Die Aufgabe schlägt weiterhin fehl. Beheben Sie das Problem und starten Sie den Agenten erneut; er setzt bei dieser Aufgabe fort.
+Protokolle:
+Pausiert. Starten Sie den Agenten erneut, um fortzufahren.
+Fortsetzung bei:
+Ollama-Fehler:
+Tipp: Wählen Sie in den Einstellungen ein kleineres Modell.
+Versuch
+Projektname (Buchstaben, Zahlen, _ und -):
+Beschreiben Sie Ihr Projekt: was es tut, seine Funktionen und Technologien. Beenden Sie mit einer leeren Zeile:
+Ist es ein grafisches Projekt mit Benutzeroberfläche? [j/n]
+Projektvorlage wird mit dem Agenten erzeugt...
+Es konnte keine gültige Vorlage erzeugt werden. Korrigieren Sie diese Datei von Hand und importieren Sie sie:
+Modelle [OK = passt in Ihren RAM, X = zu groß] (benötigter RAM, geschätzte Geschwindigkeit hier):

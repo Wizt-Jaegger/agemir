@@ -8,33 +8,36 @@
 #
 # Tips for low-end hardware:
 #   - Keep every TASK small: ONE file, ONE clear job.
-#   - Write the exact names and signatures of every file in the STYLE block
-#     (an "API contract"), so each file can be written on its own.
 #   - READS shows the model other project files it depends on (comma separated).
 #   - VERIFY is a shell command that exits with 0 when the file is correct
-#     (a syntax check, a build, a test...). It runs in the project folder and may
-#     install things first, for example: npm install && npm run build.
-#     It must finish by itself (10 minute limit): never start a server that keeps
-#     running. If it fails, Agemir retries the task (5 attempts) and gives the
-#     model the error output. After 5 failed attempts the run stops so you can
-#     fix the problem; running the agent again resumes from that task.
-#   - UI names files from resources/UI_templates_Agents (comma separated). Their
-#     content, and the icon/image links of resources/internet-sources.txt, are
-#     shown to the model for that task. Use it for graphical interface files.
+#     (a syntax check, a build, a test...). If it fails, Agemir retries the task
+#     (up to 5 times) and gives the model the error output.
 #   - FILE and READS are relative to the project folder.
+#   - A task can run a shell command instead of writing a file: use RUN (for example
+#     RUN: npm install). It runs inside the project folder, as your user, without a model.
+#     Use it to check the toolchain or install dependencies. Do not use it for commands
+#     that never finish (like a dev server).
+#   - Graphical projects: UI lists templates from resources/UI_templates_Agents
+#     (for example UI: navbar.md,login-menu.md). The model gets them as a design guide,
+#     plus the icon and image links from resources/internet-sources.txt.
 
 PROJECT_NAME:
 OBJECTIVE:
 TECH_STACK:
 RULES:
 
-# Optional: code snippets, style guides or an API contract the model should follow.
+# Optional: code snippets or style guides the model should imitate.
 # Paste them between STYLE: and END_STYLE (copied as-is, comments included).
+# Best use: an API CONTRACT with the exact names and signatures shared between files.
 STYLE:
 END_STYLE
 
-# Each GOAL groups related TASKs. Each TASK needs a FILE (the file the model writes).
-# READS, VERIFY and UI are optional. Example:
+# Each GOAL groups related TASKs. Each TASK needs a FILE (the file the model writes)
+# or a RUN command. READS, VERIFY and UI are optional. Example:
+#
+# GOAL: Setup
+# TASK: Check that Python 3 is installed
+# RUN: python3 --version
 #
 # GOAL: Core logic
 # TASK: Write a function add(a, b) that returns the sum of two numbers
@@ -44,11 +47,6 @@ END_STYLE
 # FILE: src/main.py
 # READS: src/calculator.py
 # VERIFY: python3 src/main.py
-#
-# GOAL: Interface
-# TASK: Write the page header with the logo and the navigation links
-# FILE: src/navbar.html
-# UI: navbar.html
 #
 # GOAL: Documentation
 # TASK: Write a short README explaining how to run the program

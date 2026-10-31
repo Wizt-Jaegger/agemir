@@ -5,6 +5,8 @@
 
 #define MAX_TASKS 256
 
+// A task either writes one FILE with the model, or runs one shell command (RUN).
+// Command tasks have an empty file and keep their command in "verify".
 typedef struct {
     char goal[128];
     char description[512];
@@ -12,6 +14,7 @@ typedef struct {
     char reads[512];
     char verify[512];
     char ui[256];
+    int is_command;
     long ledger_offset;
 } Task;
 
@@ -24,6 +27,10 @@ typedef struct {
     int task_count;
     Task tasks[MAX_TASKS];
 } Project;
+
+const char* task_label(const Task* task) {
+    return task->file[0] != '\0' ? task->file : task->verify;
+}
 
 // ==========================================
 //      Template Parsing
@@ -57,20 +64,16 @@ int valid_reads_list(const char* reads) {
 }
 
 // UI templates are plain file names that must exist in resources/UI_templates_Agents.
-int valid_ui_list(const char* ui, char* missing, size_t missing_size) {
+int valid_ui_list(const char* ui) {
     char list[256];
     snprintf(list, sizeof(list), "%s", ui);
     for (char* name = strtok(list, ","); name; name = strtok(NULL, ",")) {
         name = trim(name);
+        if (!is_safe_relative_path(name) || strpbrk(name, "/\\") != NULL) return 0;
 
-        char path[512];
-        snprintf(path, sizeof(path), "%s/%s", UI_TEMPLATES_DIR, name);
-        int plain_name = name[0] != '\0' && strpbrk(name, "/\\") == NULL && strstr(name, "..") == NULL;
-
-        if (!plain_name || strcmp(name, "info.txt") == 0 || !file_exists(path)) {
-            snprintf(missing, missing_size, "%s", name);
-            return 0;
-        }
+        char path[1024];
+        join_path(path, sizeof(path), UI_TEMPLATES_DIR, name);
+        if (!file_exists(path)) return 0;
     }
     return 1;
 }
@@ -95,17 +98,27 @@ int validate_project(const Project* project, char* error, size_t error_size) {
 
     for (int i = 0; i < project->task_count; i++) {
         const Task* task = &project->tasks[i];
-        char missing[256];
+        if (task->is_command) {
+            if (task->file[0] != '\0') {
+                snprintf(error, error_size, "task %d: use either FILE or RUN, not both", i + 1);
+                return 0;
+            }
+            if (task->verify[0] == '\0') {
+                snprintf(error, error_size, "task %d: RUN is empty", i + 1);
+                return 0;
+            }
+            continue;
+        }
         if (!is_safe_relative_path(task->file)) {
-            snprintf(error, error_size, "task %d: FILE must be a relative path inside the project", i + 1);
+            snprintf(error, error_size, "task %d: needs a FILE (relative path inside the project) or a RUN command", i + 1);
             return 0;
         }
         if (!valid_reads_list(task->reads)) {
             snprintf(error, error_size, "task %d: READS must be relative paths separated by commas", i + 1);
             return 0;
         }
-        if (!valid_ui_list(task->ui, missing, sizeof(missing))) {
-            snprintf(error, error_size, "task %d: UI template '%s' not found in %s", i + 1, missing, UI_TEMPLATES_DIR);
+        if (!valid_ui_list(task->ui)) {
+            snprintf(error, error_size, "task %d: UI must list file names that exist in %s", i + 1, UI_TEMPLATES_DIR);
             return 0;
         }
     }
@@ -181,8 +194,8 @@ int parse_template(const char* path, Project* project, char* error, size_t error
                 snprintf(task->goal, sizeof(task->goal), "%s", goal);
                 snprintf(task->description, sizeof(task->description), "%s", value);
             }
-        } else if (strcmp(key, "FILE") == 0 || strcmp(key, "READS") == 0 ||
-                   strcmp(key, "VERIFY") == 0 || strcmp(key, "UI") == 0) {
+        } else if (strcmp(key, "FILE") == 0 || strcmp(key, "READS") == 0 || strcmp(key, "VERIFY") == 0 ||
+                   strcmp(key, "RUN") == 0 || strcmp(key, "UI") == 0) {
             if (project->task_count == 0) {
                 snprintf(error, error_size, "line %d: %s before any TASK", line_number, key);
                 ok = 0;
@@ -194,6 +207,12 @@ int parse_template(const char* path, Project* project, char* error, size_t error
                     snprintf(task->reads, sizeof(task->reads), "%s", value);
                 } else if (strcmp(key, "UI") == 0) {
                     snprintf(task->ui, sizeof(task->ui), "%s", value);
+                } else if (strcmp(key, "RUN") == 0) {
+                    snprintf(task->verify, sizeof(task->verify), "%s", value);
+                    task->is_command = 1;
+                } else if (task->is_command) {
+                    snprintf(error, error_size, "line %d: VERIFY cannot be used in a RUN task", line_number);
+                    ok = 0;
                 } else {
                     snprintf(task->verify, sizeof(task->verify), "%s", value);
                 }
@@ -217,45 +236,48 @@ int parse_template(const char* path, Project* project, char* error, size_t error
 // ==========================================
 FILE* open_project_file(const char* project_path, const char* name, const char* mode) {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s", project_path, name);
+    join_path(path, sizeof(path), project_path, name);
     return fopen(path, mode);
 }
 
-// Copies the UI templates the tasks use, and the icon/image links, into the project.
-void copy_ui_resources(const Project* project, const char* project_path) {
+// Copies the UI templates the tasks ask for, and the asset links, into the project.
+void copy_ui_templates(const Project* project, const char* project_path) {
     int uses_ui = 0;
 
     for (int i = 0; i < project->task_count; i++) {
+        if (project->tasks[i].ui[0] == '\0') continue;
+        uses_ui = 1;
+
         char list[256];
         snprintf(list, sizeof(list), "%s", project->tasks[i].ui);
         for (char* name = strtok(list, ","); name; name = strtok(NULL, ",")) {
             name = trim(name);
-            char source[512], destination[1100];
-            snprintf(source, sizeof(source), "%s/%s", UI_TEMPLATES_DIR, name);
-            snprintf(destination, sizeof(destination), "%s/templates/ui/%s", project_path, name);
+            char source[1024], destination[1024], relative[512];
+            join_path(source, sizeof(source), UI_TEMPLATES_DIR, name);
+            snprintf(relative, sizeof(relative), "templates/ui/%s", name);
+            join_path(destination, sizeof(destination), project_path, relative);
             make_parent_dirs(destination);
             copy_file(source, destination);
-            uses_ui = 1;
         }
     }
 
-    if (uses_ui && file_exists(INTERNET_SOURCES_PATH)) {
-        char destination[1100];
-        snprintf(destination, sizeof(destination), "%s/templates/internet_sources.txt", project_path);
-        copy_file(INTERNET_SOURCES_PATH, destination);
+    if (uses_ui && file_exists(ASSET_SOURCES_PATH)) {
+        char destination[1024];
+        join_path(destination, sizeof(destination), project_path, "templates/asset_links.txt");
+        copy_file(ASSET_SOURCES_PATH, destination);
     }
 }
 
 int write_project_files(const Project* project, const char* template_path,
                         const char* project_path, char* error, size_t error_size) {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/tasks.txt", project_path);
+    join_path(path, sizeof(path), project_path, "tasks.txt");
     if (file_exists(path)) {
         snprintf(error, error_size, "%s already contains a project (tasks.txt exists)", project_path);
         return 0;
     }
 
-    snprintf(path, sizeof(path), "%s/templates", project_path);
+    join_path(path, sizeof(path), project_path, "templates");
     MKDIR(path);
 
     FILE *context = open_project_file(project_path, "context.md", "w");
@@ -275,7 +297,12 @@ int write_project_files(const Project* project, const char* template_path,
     fprintf(context, "# %s\n\n## Objective\n%s\n\n## Tech Stack\n%s\n\n## Rules\n%s\n\n## Planned Files\n",
             project->name, project->objective, project->tech_stack, project->rules);
     for (int i = 0; i < project->task_count; i++) {
-        fprintf(context, "- %s: %s\n", project->tasks[i].file, project->tasks[i].description);
+        const Task* task = &project->tasks[i];
+        if (task->is_command) {
+            fprintf(context, "- run `%s`: %s\n", task->verify, task->description);
+        } else {
+            fprintf(context, "- %s: %s\n", task->file, task->description);
+        }
     }
 
     fputs(project->style ? project->style : "No style guidelines provided.\n", style);
@@ -298,9 +325,10 @@ int write_project_files(const Project* project, const char* template_path,
     fclose(ledger);
     fclose(progress_log);
 
-    snprintf(path, sizeof(path), "%s/template.txt", project_path);
+    copy_ui_templates(project, project_path);
+
+    join_path(path, sizeof(path), project_path, "template.txt");
     copy_file(template_path, path);
-    copy_ui_resources(project, project_path);
     return 1;
 }
 
@@ -334,8 +362,8 @@ int import_project(const char* template_path, const char* project_path) {
 //      Task Ledger (tasks.txt)
 //      "# Goal title" lines group tasks.
 //      Task lines: [ ] pending, [x] done, [!] failed, then tab-separated
-//      file, reads, verify, ui and description.
-//      Older ledgers without the ui column are still read.
+//      file, reads, verify (or the RUN command), ui and description.
+//      Ledgers written before the ui column existed have 5 columns and still load.
 // ==========================================
 int parse_ledger_line(char* line, Task* task) {
     char* fields[6];
@@ -359,6 +387,7 @@ int parse_ledger_line(char* line, Task* task) {
         task->ui[0] = '\0';
         snprintf(task->description, sizeof(task->description), "%s", fields[4]);
     }
+    task->is_command = task->file[0] == '\0';
     return 1;
 }
 
@@ -415,25 +444,6 @@ void ledger_reset_failed(const char* ledger_path) {
     }
 }
 
-void ledger_count(const char* ledger_path, int* done, int* total) {
-    *done = 0;
-    *total = 0;
-
-    FILE *f = fopen(ledger_path, "rb");
-    if (!f) return;
-
-    char line[4096];
-    while (fgets(line, sizeof(line), f)) {
-        if (strncmp(line, "[x]", 3) == 0) {
-            (*done)++;
-            (*total)++;
-        } else if (strncmp(line, "[ ]", 3) == 0 || strncmp(line, "[!]", 3) == 0) {
-            (*total)++;
-        }
-    }
-    fclose(f);
-}
-
 void ledger_write_built_summary(FILE* out, const char* ledger_path) {
     FILE *f = fopen(ledger_path, "rb");
     if (!f) return;
@@ -444,7 +454,11 @@ void ledger_write_built_summary(FILE* out, const char* ledger_path) {
         line[strcspn(line, "\r\n")] = '\0';
         Task task;
         if (strncmp(line, "[x]", 3) == 0 && parse_ledger_line(line, &task)) {
-            fprintf(out, "- %s: %s\n", task.file, task.description);
+            if (task.is_command) {
+                fprintf(out, "- ran `%s`: %s\n", task.verify, task.description);
+            } else {
+                fprintf(out, "- %s: %s\n", task.file, task.description);
+            }
             any = 1;
         }
     }
