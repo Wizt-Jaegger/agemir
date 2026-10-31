@@ -301,6 +301,10 @@ int main() {
         current_model(benchmark_rate, total_ram_mb(), model, sizeof(model), &is_auto);
 
         project_title();
+#if !OLLAMA_ENABLED
+        printf("*** SIMULATION MODE: no model is called and nothing is verified. "
+               "Compile with -DOLLAMA_ENABLED=1 for real runs. ***\n\n");
+#endif
         if (has_projects) printf("\t%s\n", ui_strings[1]);
         printf("\t%s\n", ui_strings[2]);
         printf("\t%s\n", ui_strings[3]);
