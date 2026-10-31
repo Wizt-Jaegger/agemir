@@ -1,30 +1,8 @@
 #include "projectLibraries/utils.h"
+#include "projectLibraries/models.h"
 #include "projectLibraries/project.h"
 #include "projectLibraries/agent.h"
-
-// ==========================================
-//      Model Recommendations
-// ==========================================
-typedef struct {
-    int min_tokens_per_sec;
-    const char* model;
-} ModelTier;
-
-static const ModelTier MODEL_TIERS[] = {
-    {40, "qwen2.5-coder:14b"},
-    {20, "qwen2.5-coder:7b"},
-    {10, "qwen2.5-coder:3b"},
-    {0,  "qwen2.5-coder:1.5b"},
-};
-
-const char* recommended_model(int tokens_per_sec) {
-    size_t last = sizeof(MODEL_TIERS) / sizeof(MODEL_TIERS[0]) - 1;
-    size_t i = 0;
-    while (i < last && tokens_per_sec < MODEL_TIERS[i].min_tokens_per_sec) {
-        i++;
-    }
-    return MODEL_TIERS[i].model;
-}
+#include "projectLibraries/generator.h"
 
 // ==========================================
 //      Hardware Benchmark
@@ -35,8 +13,7 @@ int run_hardware_benchmark() {
 #if OLLAMA_ENABLED
     char pull_cmd[256];
     snprintf(pull_cmd, sizeof(pull_cmd), "ollama pull qwen:0.5b %s", DEV_NULL);
-    int status = system(pull_cmd);
-    (void)status;
+    run_shell(pull_cmd, 0);
 #endif
 
     printf("%s\n", ui_strings[7]);
@@ -59,21 +36,18 @@ int run_hardware_benchmark() {
 
     int tokens_per_sec = (int)eval_rate;
     printf("%s %d tokens/sec\n", ui_strings[8], tokens_per_sec);
-    printf("%s %s\n", ui_strings[19], recommended_model(tokens_per_sec));
+    printf("%s %s\n", ui_strings[19], recommended_model(tokens_per_sec, detect_ram_gb()));
 
-    config_set_int("benchmark", tokens_per_sec);
+    // A simulated score must never be mistaken for a real one later.
+    if (OLLAMA_ENABLED) config_set_int("benchmark", tokens_per_sec);
     return tokens_per_sec;
 }
 
 // ==========================================
 //      Startup Checks
 // ==========================================
-int get_or_prompt_language() {
-    int lang = config_get_int("language", 0);
-    if (lang >= 1 && lang <= 5) {
-        return lang;
-    }
-
+int prompt_language() {
+    int lang = 0;
     while (lang < 1 || lang > 5) {
         clean_screen();
         printf("--- Agemir (%s) ---\n", OS_NAME);
@@ -81,7 +55,16 @@ int get_or_prompt_language() {
         printf("\t1. English\n\t2. Español\n\t3. Français\n\t4. Deutsch\n\t5. 日本語\n\tSelection: ");
         lang = read_int();
     }
+    return lang;
+}
 
+int get_or_prompt_language() {
+    int lang = config_get_int("language", 0);
+    if (lang >= 1 && lang <= 5) {
+        return lang;
+    }
+
+    lang = prompt_language();
     config_set_int("language", lang);
     return lang;
 }
@@ -96,6 +79,84 @@ void get_or_prompt_username() {
         read_line(username, sizeof(username));
     }
     config_set("username", username);
+}
+
+// ==========================================
+//      Settings
+// ==========================================
+void change_name() {
+    char name[64];
+
+    printf("%s %s\n%s ", ui_strings[40], username, ui_strings[41]);
+    read_line(name, sizeof(name));
+
+    char* trimmed = trim(name);
+    if (trimmed[0] != '\0') {
+        snprintf(username, sizeof(username), "%s", trimmed);
+        config_set("username", username);
+        printf("%s\n", ui_strings[44]);
+    }
+}
+
+void change_language() {
+    int lang = prompt_language();
+    config_set_int("language", lang);
+    load_language(lang);
+    printf("%s\n", ui_strings[44]);
+}
+
+void change_model(int benchmark_rate) {
+    int ram_gb = detect_ram_gb();
+
+    printf("%s\n", ui_strings[42]);
+    printf("\t0. %s: %s\n", ui_strings[43], recommended_model(benchmark_rate, ram_gb));
+    for (int i = 0; i < MODEL_COUNT; i++) {
+        const ModelInfo* model = &MODEL_CATALOG[i];
+        const char* warning = ram_gb > 0 && ram_gb < model->min_ram_gb ? "!" : " ";
+        printf("\t%d.%s%s (%.1f GB, ~%d GB RAM) %s\n", i + 1, warning, model->tag,
+               model->size_gb, model->min_ram_gb, model->note);
+    }
+
+    printf("\t%s ", ui_strings[4]);
+    int choice = read_int();
+
+    if (choice == 0) {
+        config_set("model", "auto");
+        printf("%s\n", ui_strings[44]);
+    } else if (choice >= 1 && choice <= MODEL_COUNT) {
+        config_set("model", MODEL_CATALOG[choice - 1].tag);
+        printf("%s\n", ui_strings[44]);
+    } else {
+        printf("%s\n", ui_strings[20]);
+    }
+}
+
+void settings_menu(int benchmark_rate) {
+    int choice = -1;
+    while (choice != 0) {
+        project_title();
+        printf("%s\n\n", ui_strings[35]);
+        printf("\t%s (%s)\n", ui_strings[36], username);
+        printf("\t%s\n", ui_strings[37]);
+        printf("\t%s (%s)\n", ui_strings[38], selected_model(benchmark_rate));
+        printf("\t%s\n", ui_strings[39]);
+        printf("\t%s ", ui_strings[4]);
+        choice = read_int();
+
+        if (choice == 1) {
+            change_name();
+            wait_for_enter();
+        } else if (choice == 2) {
+            change_language();
+            wait_for_enter();
+        } else if (choice == 3) {
+            change_model(benchmark_rate);
+            wait_for_enter();
+        } else if (choice != 0) {
+            printf("%s\n", ui_strings[20]);
+            wait_for_enter();
+        }
+    }
 }
 
 // ==========================================
@@ -151,8 +212,8 @@ void handle_run_agent(int benchmark_rate) {
         return;
     }
 
-    const char* model = recommended_model(benchmark_rate);
-    printf("%s %s\n", ui_strings[19], model);
+    const char* model = selected_model(benchmark_rate);
+    printf("%s %s\n", ui_strings[40], model);
     run_agent(path, model);
 }
 
@@ -163,9 +224,10 @@ int main() {
     load_language(get_or_prompt_language());
     get_or_prompt_username();
 
+    int ollama_ready = ensure_ollama();
     int benchmark_rate = config_get_int("benchmark", -1);
     if (benchmark_rate < 0) {
-        benchmark_rate = run_hardware_benchmark();
+        benchmark_rate = ollama_ready ? run_hardware_benchmark() : 0;
         wait_for_enter();
     }
 
@@ -178,6 +240,8 @@ int main() {
         printf("\t%s\n", ui_strings[2]);
         printf("\t%s\n", ui_strings[3]);
         printf("\t%s\n", ui_strings[22]);
+        printf("\t%s\n", ui_strings[34]);
+        printf("\t%s\n", ui_strings[45]);
         printf("\t%s\n", ui_strings[15]);
         printf("\t%s ", ui_strings[4]);
         choice = read_int();
@@ -193,6 +257,11 @@ int main() {
             wait_for_enter();
         } else if (choice == 4) {
             import_template();
+            wait_for_enter();
+        } else if (choice == 5) {
+            settings_menu(benchmark_rate);
+        } else if (choice == 6) {
+            generate_project_from_description(selected_model(benchmark_rate));
             wait_for_enter();
         } else if (choice != 0) {
             printf("%s\n", ui_strings[20]);

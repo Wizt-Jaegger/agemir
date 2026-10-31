@@ -1,4 +1,0 @@
-username:emi
-language:2
-benchmark:61
-project:ani_tracker:/home/wizt/Documents/ani_tracke
