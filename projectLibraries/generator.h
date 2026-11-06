@@ -82,13 +82,16 @@ int write_generator_payload(const char* payload_path, const char* name, const ch
             "Reply with ONLY the complete template inside a single fenced code block. Follow the FORMAT GUIDE exactly.\n"
             "Rules:\n"
             "- PROJECT_NAME must be %s.\n"
-            "- Split the project into GOALs and small TASKs. Each TASK creates ONE file (FILE) or runs ONE shell command (RUN).\n"
-            "- Put the exact names and signatures shared between files in the STYLE block as comments (an API CONTRACT), "
-            "so every task uses the same names.\n"
-            "- Add a VERIFY command to every FILE task when a syntax check, compiler or test exists. Use READS so a task "
-            "sees the files it depends on.\n"
-            "- Use RUN tasks for shell commands such as checking the toolchain or installing dependencies.\n"
-            "- Keep every TASK description under 300 characters. Order the tasks so each one only needs earlier files.\n\n",
+            "- Elephant memory: list every requested outcome as a numbered OBJECTIVE (1023 bytes total). Use RULES for constraints "
+            "and STYLE for a compact shared contract (paths, exact signatures, data shapes and entry point).\n"
+            "- Goldfish tasks: give each task one behavior and one small file, or one RUN command. "
+            "Split large features into modules a small coding model can generate in one reply. "
+            "Name the requirement and the expected result in the TASK description (max 300 characters).\n"
+            "- Order work from shared interfaces to features to integration. READS may name only earlier FILE "
+            "outputs and should list just the direct dependencies.\n"
+            "- Use VERIFY for executable acceptance checks, including expected behavior when possible. "
+            "Add a final RUN task that runs the end-to-end checks against the requested outcomes. "
+            "Use commands supported by the requested stack and operating system.\n\n",
             name);
     fprintf(payload, "### FORMAT GUIDE ###\n%s\n\n### EXAMPLE OF A GOOD TEMPLATE ###\n%s\n\n",
             guide ? guide : "", example ? example : "");
@@ -116,10 +119,43 @@ int write_generator_payload(const char* payload_path, const char* name, const ch
     return 1;
 }
 
+// These checks apply to generated templates. Imported templates keep their existing format.
+int validate_generated_plan(const Project* project, char* error, size_t error_size) {
+    if (!project->style || !project->style[0] || strlen(project->style) > MAX_INCLUDED_BYTES) {
+        snprintf(error, error_size, "STYLE must contain a shared contract within %d bytes", MAX_INCLUDED_BYTES);
+        return 0;
+    }
+    for (int i = 0; i < project->task_count; i++) {
+        const Task* task = &project->tasks[i];
+        if (!task->goal[0] || !task->description[0] || strlen(task->description) > 300) {
+            snprintf(error, error_size, "task %d needs a GOAL and a description of 1 to 300 bytes", i + 1);
+            return 0;
+        }
+        char list[sizeof(task->reads)];
+        snprintf(list, sizeof(list), "%s", task->reads);
+        for (char* path = strtok(list, ","); path; path = strtok(NULL, ",")) {
+            path = trim(path);
+            int previous = 0;
+            while (previous < i && strcmp(project->tasks[previous].file, path) != 0) previous++;
+            if (previous == i) {
+                snprintf(error, error_size, "task %d: READS must name FILE outputs from earlier tasks", i + 1);
+                return 0;
+            }
+        }
+    }
+    if (!project->tasks[project->task_count - 1].is_command) {
+        snprintf(error, error_size, "end with a RUN task that checks the integrated project");
+        return 0;
+    }
+    return 1;
+}
+
 // Asks the model to write the template, validates it, and creates the project from it.
 // The template is saved as <name>_gen_template.txt inside the project folder.
 int generate_project(const char* model, const char* name, const char* project_path,
                      const char* description, int graphical) {
+    if (!ensure_ollama_ready() || !ensure_model(model)) return 0;
+
     char resolved[1024];
     MKDIR(project_path);
     resolve_path(project_path, resolved, sizeof(resolved));
@@ -141,14 +177,15 @@ int generate_project(const char* model, const char* name, const char* project_pa
         unload_model(model);
         char* errors = read_file(stderr_path);
         char* code = output ? extract_code_block(output) : NULL;
+        int model_failed = output == NULL;
         free(output);
 
         if (!code) {
             char error_line[256];
             int fatal = first_error_line(errors, error_line, sizeof(error_line));
             free(errors);
-            if (fatal) {
-                printf("%s %s\n%s\n", ui_strings[55], error_line, ui_strings[56]);
+            if (fatal || model_failed) {
+                printf("%s %s\n%s\n", ui_strings[55], fatal ? error_line : "could not run ollama", ui_strings[56]);
                 break;
             }
             snprintf(feedback, sizeof(feedback), "Your reply did not contain a complete fenced code block.");
@@ -159,13 +196,15 @@ int generate_project(const char* model, const char* name, const char* project_pa
         char* forced = force_project_name(code, name);
         free(code);
         if (!forced) continue;
-        write_text_file(template_path, forced);
+        int saved = write_text_file(template_path, forced);
         free(forced);
+        if (!saved) break;
 
         Project* project = calloc(1, sizeof(Project));
         if (!project) break;
         char error[256] = "";
-        valid = parse_template(template_path, project, error, sizeof(error));
+        valid = parse_template(template_path, project, error, sizeof(error)) &&
+                validate_generated_plan(project, error, sizeof(error));
         free(project->style);
         free(project);
 

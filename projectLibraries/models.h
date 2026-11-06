@@ -4,9 +4,9 @@
 #include "utils.h"
 
 #define MAX_MODELS 32
-#define BENCHMARK_MODEL_PARAMS 0.5f
+#define BENCHMARK_MODEL_PARAMS 1.5f
 #define MIN_ESTIMATED_TPS 2.0f
-#define DEFAULT_BENCHMARK_TPS 20
+#define DEFAULT_BENCHMARK_TPS 7
 
 // One line of resources/models.txt:
 //   tag | active parameters (billions) | min RAM (GB) | auto (1/0) | note
@@ -64,7 +64,7 @@ void load_model_catalog() {
 }
 
 // Speed scales roughly with 1 / active parameters, so the benchmark of the
-// 0.5b model tells us how fast a bigger one would be.
+// 1.5b model is only a rough starting point for other models.
 float estimated_speed(int benchmark_tps, const ModelInfo* model) {
     if (benchmark_tps <= 0) benchmark_tps = DEFAULT_BENCHMARK_TPS;
     return (float)benchmark_tps * BENCHMARK_MODEL_PARAMS / model->active_params_b;

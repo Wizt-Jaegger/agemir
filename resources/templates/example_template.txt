@@ -1,0 +1,30 @@
+PROJECT_NAME: temperature
+OBJECTIVE: R1 Convert a Celsius command-line argument to Fahrenheit.
+OBJECTIVE: R2 Reject invalid input with a nonzero exit code.
+TECH_STACK: Python 3 standard library
+RULES: Print only the number on success. Keep each module small.
+STYLE:
+conversion.py exports to_fahrenheit(celsius: float) -> float.
+main.py accepts one positional argument and prints the float result.
+test_cli.py tests main.py using subprocess and sys.executable.
+END_STYLE
+
+GOAL: Convert temperatures
+TASK: R1 Implement to_fahrenheit(celsius). At 0 degrees the result is 32.0.
+FILE: conversion.py
+VERIFY: python -c "from conversion import to_fahrenheit; assert to_fahrenheit(0) == 32"
+
+GOAL: Build the CLI
+TASK: R1 and R2 Read one Celsius argument and print the conversion. Exit nonzero on invalid input.
+FILE: main.py
+READS: conversion.py
+VERIFY: python main.py 0
+
+GOAL: Check the complete project
+TASK: R1 and R2 Write unittest checks that run main.py with 0, 100, and invalid text and assert stdout and exit status.
+FILE: test_cli.py
+READS: main.py
+VERIFY: python -m unittest test_cli
+
+TASK: R1 and R2 Run the complete CLI acceptance tests.
+RUN: python -m unittest test_cli

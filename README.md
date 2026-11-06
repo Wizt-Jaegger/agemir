@@ -141,7 +141,14 @@ tag | active params | min RAM | auto | note
 
 - The menu marks each model as **[OK]** or **[X]** for your RAM and shows an **estimated speed**.
 - **"Auto"** uses the benchmark result. You can also pick any model or type your own tag.
-- Sizes marked *unverified* in the file should be checked with `ollama show`.
+- Auto workers range from Qwen2.5 Coder 0.5B to 3B. For **Generate Project From a Description**, Auto uses the 7B planner when the machine reports at least 12 GiB of RAM and a measured benchmark of at least 10 output tokens/s. A manual model selection applies to both planning and coding.
+- The generated template keeps the requested outcomes and shared interfaces in `OBJECTIVE` and `STYLE` (elephant memory). Each coding request sees one task, its direct `READS`, and its acceptance check (goldfish scope). The generated plan ends with an integration check.
+
+### Compare two machines
+
+Run menu option **3** on each machine with Ollama listening on the default local port and `curl` on PATH. Compare the median of three warm 128-token runs using `qwen2.5-coder:1.5b`, a 2048-token context and fixed sampling options. Save the Ollama version and `ollama ps` row, including model ID and the `PROCESSOR` column, with each result. The throughput measures output generation. Load and prompt evaluation have separate timings. Settings estimates for other model sizes are approximate.
+
+On Windows, Agemir checks the standard per-user Ollama directory when the current session has a stale PATH. For a custom install directory, add it to PATH and launch Agemir from a fresh terminal.
 
 > [!TIP]
 > Ollama's default context window is small. If long tasks look truncated, raise it with `OLLAMA_CONTEXT_LENGTH` or `num_ctx`.
@@ -323,7 +330,14 @@ etiqueta | parámetros activos | RAM mínima | auto | nota
 
 - El menú marca cada modelo como **[OK]** o **[X]** según tu RAM y muestra una **velocidad estimada**.
 - **"Auto"** usa el resultado de la prueba de rendimiento. También puedes elegir cualquier modelo o escribir tu propia etiqueta.
-- Los tamaños marcados como *unverified* (sin verificar) en el archivo deben comprobarse con `ollama show`.
+- El modo automático usa Qwen2.5 Coder de 0.5B a 3B para programar. Al generar un proyecto desde una descripción, usa el planificador de 7B si hay al menos 12 GiB de RAM y la prueba alcanza 10 tokens de salida por segundo. La selección manual se aplica a ambas etapas.
+- La plantilla conserva los resultados y contratos en `OBJECTIVE` y `STYLE`. Cada tarea incluye solo sus dependencias directas en `READS` y su verificación. El plan generado termina con una comprobación de integración.
+
+### Comparar dos equipos
+
+Ejecuta la opción **3** en cada equipo con Ollama en el puerto local predeterminado y `curl` en PATH. La prueba informa la mediana de tres ejecuciones de 128 tokens tras calentar `qwen2.5-coder:1.5b`, con un contexto de 2048 tokens. Guarda la versión de Ollama y la fila de `ollama ps`, incluido el ID del modelo y la columna `PROCESSOR`, junto a cada resultado. La cifra mide la generación de tokens de salida. Las velocidades de otros tamaños de modelo son estimaciones.
+
+En Windows, Agemir busca Ollama en la carpeta estándar del usuario si la sesión aún tiene el PATH anterior. Si elegiste una carpeta de instalación personalizada, agrégala a PATH y abre Agemir desde una terminal nueva.
 
 > [!TIP]
 > La ventana de contexto predeterminada de Ollama es pequeña. Si las tareas largas se ven cortadas, auméntala con `OLLAMA_CONTEXT_LENGTH` o `num_ctx`.

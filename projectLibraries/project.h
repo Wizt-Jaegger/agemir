@@ -294,16 +294,8 @@ int write_project_files(const Project* project, const char* template_path,
         return 0;
     }
 
-    fprintf(context, "# %s\n\n## Objective\n%s\n\n## Tech Stack\n%s\n\n## Rules\n%s\n\n## Planned Files\n",
+    fprintf(context, "# %s\n\n## Objective\n%s\n\n## Tech Stack\n%s\n\n## Rules\n%s\n",
             project->name, project->objective, project->tech_stack, project->rules);
-    for (int i = 0; i < project->task_count; i++) {
-        const Task* task = &project->tasks[i];
-        if (task->is_command) {
-            fprintf(context, "- run `%s`: %s\n", task->verify, task->description);
-        } else {
-            fprintf(context, "- %s: %s\n", task->file, task->description);
-        }
-    }
 
     fputs(project->style ? project->style : "No style guidelines provided.\n", style);
 
@@ -444,7 +436,7 @@ void ledger_reset_failed(const char* ledger_path) {
     }
 }
 
-void ledger_write_built_summary(FILE* out, const char* ledger_path) {
+void ledger_write_built_summary(FILE* out, const char* ledger_path, const char* reads) {
     FILE *f = fopen(ledger_path, "rb");
     if (!f) return;
 
@@ -453,18 +445,20 @@ void ledger_write_built_summary(FILE* out, const char* ledger_path) {
     while (fgets(line, sizeof(line), f)) {
         line[strcspn(line, "\r\n")] = '\0';
         Task task;
-        if (strncmp(line, "[x]", 3) == 0 && parse_ledger_line(line, &task)) {
-            if (task.is_command) {
-                fprintf(out, "- ran `%s`: %s\n", task.verify, task.description);
-            } else {
-                fprintf(out, "- %s: %s\n", task.file, task.description);
+        if (strncmp(line, "[x]", 3) != 0 || !parse_ledger_line(line, &task) || task.is_command) continue;
+
+        char list[512];
+        snprintf(list, sizeof(list), "%s", reads);
+        for (char* name = strtok(list, ","); name; name = strtok(NULL, ",")) {
+            if (strcmp(trim(name), task.file) == 0) {
+                fprintf(out, "- %s\n", task.file);
+                any = 1;
+                break;
             }
-            any = 1;
         }
     }
     fclose(f);
-
-    if (!any) fprintf(out, "(nothing yet)\n");
+    if (!any) fprintf(out, "(none of this task's dependencies are marked complete)\n");
 }
 
 #endif

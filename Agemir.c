@@ -7,45 +7,96 @@
 // ==========================================
 //      Hardware Benchmark
 // ==========================================
-int run_hardware_benchmark() {
-    printf("%s\n", ui_strings[6]);
+#define BENCHMARK_MODEL "qwen2.5-coder:1.5b"
 
 #if OLLAMA_ENABLED
-    char pull_cmd[256];
-    snprintf(pull_cmd, sizeof(pull_cmd), "ollama pull qwen:0.5b %s", DEV_NULL);
-    int status = system(pull_cmd);
-    (void)status;
+// The only interpolated value is a sample number. Both cmd.exe's C runtime
+// argument parsing and the POSIX shell pass the escaped quotes through to curl.
+double benchmark_sample(int sample) {
+    char command[1024];
+    snprintf(command, sizeof(command),
+             "curl --noproxy \"*\" --fail --silent --show-error --max-time 180 "
+             "http://127.0.0.1:11434/api/generate -H \"Content-Type: application/json\" "
+             "--data-binary \"{\\\"model\\\":\\\"" BENCHMARK_MODEL "\\\","
+             "\\\"prompt\\\":\\\"Sample %d. List the integers 1 through 500 separated by commas.\\\","
+             "\\\"stream\\\":false,\\\"keep_alive\\\":\\\"5m\\\","
+             "\\\"options\\\":{\\\"temperature\\\":0,\\\"seed\\\":42,"
+             "\\\"num_ctx\\\":2048,\\\"num_predict\\\":128}}\"",
+             sample);
+    FILE *pipe = POPEN(command, "r");
+    if (!pipe) return 0.0;
+
+    char response[16384];
+    size_t length = fread(response, 1, sizeof(response) - 1, pipe);
+    int extra = fgetc(pipe);
+    int failed = ferror(pipe);
+    int status = PCLOSE(pipe);
+    if (extra != EOF || failed || status != 0) return 0.0;
+    response[length] = '\0';
+
+    const char* count_field = strstr(response, "\"eval_count\"");
+    const char* duration_field = strstr(response, "\"eval_duration\"");
+    if (!count_field || !duration_field) return 0.0;
+
+    long count = 0;
+    long long duration = 0;
+    if (sscanf(count_field, "\"eval_count\" : %ld", &count) != 1 || count != 128 ||
+        sscanf(duration_field, "\"eval_duration\" : %lld", &duration) != 1 || duration <= 0) {
+        return 0.0;
+    }
+    return (double)count * 1e9 / (double)duration;
+}
 #endif
+
+int run_hardware_benchmark() {
+    double eval_rate = 24.5;
+#if OLLAMA_ENABLED
+    const char* host = getenv("OLLAMA_HOST");
+    if (host && *host && strcmp(host, "127.0.0.1:11434") != 0 &&
+        strcmp(host, "http://127.0.0.1:11434") != 0 &&
+        strcmp(host, "localhost:11434") != 0 && strcmp(host, "http://localhost:11434") != 0) {
+        printf("The hardware benchmark requires Ollama on 127.0.0.1:11434.\n");
+        return 0;
+    }
+    if (!ensure_ollama_ready()) return 0;
+    printf("%s %s\n", ui_strings[6], BENCHMARK_MODEL);
+    if (!ensure_model(BENCHMARK_MODEL)) return 0;
 
     printf("%s\n", ui_strings[7]);
-
-    float eval_rate = 0.0f;
-
-#if OLLAMA_ENABLED
-    FILE *fp = POPEN("ollama run qwen:0.5b \"Write a 50 word poem\" --verbose 2>&1", "r");
-    char buffer[512];
-    if (fp) {
-        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-            char *match = strstr(buffer, "eval rate:");
-            if (match) sscanf(match, "eval rate: %f", &eval_rate);
-        }
-        PCLOSE(fp);
+    system("ollama --version");
+    printf("Model: %s | Context: 2048 | Output: 128 tokens per sample\n", BENCHMARK_MODEL);
+    double rates[3];
+    int valid = benchmark_sample(0) > 0.0;
+    if (valid) system("ollama ps");
+    for (int i = 0; valid && i < 3; i++) {
+        rates[i] = benchmark_sample(i + 1);
+        valid = rates[i] > 0.0;
+        if (valid) printf("Sample %d: %.2f output tokens/sec\n", i + 1, rates[i]);
     }
-#else
-    eval_rate = 24.5f;
-#endif
-
-    int tokens_per_sec = (int)eval_rate;
-    if (tokens_per_sec <= 0) {
-        printf("%s the benchmark did not return a speed\n", ui_strings[55]);
+    unload_model(BENCHMARK_MODEL);
+    if (!valid) {
+        printf("%s benchmark needs curl and a complete 128-token response for each sample.\n", ui_strings[55]);
         return 0;
     }
 
+    // Median of three warm decode runs, excluding model load and prompt evaluation.
+    if (rates[0] > rates[1]) {
+        double swap = rates[0];
+        rates[0] = rates[1];
+        rates[1] = swap;
+    }
+    eval_rate = rates[2] < rates[0] ? rates[0] : rates[2] > rates[1] ? rates[1] : rates[2];
+#endif
+
+    int tokens_per_sec = (int)(eval_rate + 0.5);
+    if (tokens_per_sec < 1) tokens_per_sec = 1;
     long ram_mb = total_ram_mb();
-    printf("%s %d tokens/sec | RAM: %ld MB\n", ui_strings[8], tokens_per_sec, ram_mb);
+    printf("%s %.2f output tokens/sec | RAM: %ld MB\n", ui_strings[8], eval_rate, ram_mb);
     printf("%s %s\n", ui_strings[19], recommended_model(tokens_per_sec, ram_mb));
 
-    config_set_int("benchmark", tokens_per_sec);
+#if OLLAMA_ENABLED
+    config_set_int("benchmark_v2", tokens_per_sec);
+#endif
     return tokens_per_sec;
 }
 
@@ -246,7 +297,7 @@ void handle_run_agent(const char* model, int is_auto) {
     run_agent(path, model);
 }
 
-void handle_generate(const char* model, int is_auto) {
+void handle_generate(const char* model, int is_auto, int benchmark_rate) {
     char name[64];
     char project_path[512];
     char description[MAX_DESCRIPTION_BYTES];
@@ -273,6 +324,9 @@ void handle_generate(const char* model, int is_auto) {
     }
 
     int graphical = ask_yes_no(ui_strings[60]);
+    if (is_auto && total_ram_mb() >= 12 * 1024 && benchmark_rate >= 10) {
+        model = "qwen2.5-coder:7b";
+    }
     print_selected_model(model, is_auto);
     printf("%s\n", ui_strings[61]);
     generate_project(model, name, project_path, description, graphical);
@@ -285,9 +339,7 @@ int main() {
     load_language(get_or_prompt_language());
     get_or_prompt_username();
     load_model_catalog();
-    ensure_ollama_ready();
-
-    int benchmark_rate = config_get_int("benchmark", -1);
+    int benchmark_rate = config_get_int("benchmark_v2", -1);
     if (benchmark_rate < 0) {
         benchmark_rate = run_hardware_benchmark();
         wait_for_enter();
@@ -329,7 +381,7 @@ int main() {
             import_template();
             wait_for_enter();
         } else if (choice == 5) {
-            handle_generate(model, is_auto);
+            handle_generate(model, is_auto, benchmark_rate);
             wait_for_enter();
         } else if (choice == 6) {
             settings_menu(benchmark_rate);

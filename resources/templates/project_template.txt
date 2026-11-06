@@ -7,7 +7,11 @@
 # repeated to add more lines.
 #
 # Tips for low-end hardware:
-#   - Keep every TASK small: ONE file, ONE clear job.
+#   - Elephant memory: number each required outcome in OBJECTIVE and record shared
+#     interfaces, file paths and data formats in STYLE.
+#   - Goldfish tasks: one small file and one behavior per TASK, or one RUN command.
+#     Name the outcome it serves and say how to check the result.
+#   - Order dependencies first. Finish with a RUN command that checks the whole project.
 #   - READS shows the model other project files it depends on (comma separated).
 #   - VERIFY is a shell command that exits with 0 when the file is correct
 #     (a syntax check, a build, a test...). If it fails, Agemir retries the task

@@ -32,7 +32,30 @@ void handle_interrupt(int signal_number) {
 //      Ollama Control
 // ==========================================
 int ollama_installed() {
-    return system("ollama --version" DEV_NULL) == 0;
+#if defined(_WIN32)
+    // WinGet updates the user PATH, but the running Agemir process still has its old PATH.
+    if (system("where.exe ollama.exe" DEV_NULL) == 0) return 1;
+    const char* local = getenv("LOCALAPPDATA");
+    if (!local) return 0;
+
+    char directory[1024], executable[1100];
+    int length = snprintf(directory, sizeof(directory), "%s\\Programs\\Ollama", local);
+    if (length < 0 || (size_t)length >= sizeof(directory)) return 0;
+    snprintf(executable, sizeof(executable), "%s\\ollama.exe", directory);
+    if (!file_exists(executable)) return 0;
+
+    const char* old_path = getenv("PATH");
+    if (!old_path) old_path = "";
+    size_t size = strlen(directory) + strlen(old_path) + 2;
+    char* updated_path = malloc(size);
+    if (!updated_path) return 0;
+    snprintf(updated_path, size, "%s;%s", directory, old_path);
+    int ok = _putenv_s("PATH", updated_path) == 0;
+    free(updated_path);
+    return ok;
+#else
+    return system("command -v ollama" DEV_NULL) == 0;
+#endif
 }
 
 int ollama_server_ready() {
@@ -48,8 +71,8 @@ int ensure_ollama_ready() {
             return 0;
         }
         printf("%s\n", ui_strings[48]);
-        int status = system(INSTALL_OLLAMA);
-        if (status != 0 || !ollama_installed()) {
+        system(INSTALL_OLLAMA);
+        if (!ollama_installed()) {
             printf("%s %s\n", ui_strings[33], INSTALL_OLLAMA);
             return 0;
         }
@@ -103,7 +126,7 @@ char* run_model(const char* model, const char* payload_path, const char* stderr_
 #if OLLAMA_ENABLED
     (void)target_file;
 
-    char command[2048];
+    char command[4608];
     snprintf(command, sizeof(command), "ollama run %s --nowordwrap < \"%s\" 2> \"%s\"",
              model, payload_path, stderr_path);
     FILE *pipe = POPEN(command, "r");
@@ -129,7 +152,11 @@ char* run_model(const char* model, const char* payload_path, const char* stderr_
     }
     if (output) output[length] = '\0';
 
-    PCLOSE(pipe);
+    int failed = ferror(pipe);
+    if (PCLOSE(pipe) != 0 || failed) {
+        free(output);
+        return NULL;
+    }
     return output;
 #else
     (void)model;
@@ -243,13 +270,14 @@ int write_payload(const char* project_path, const Task* task, const char* feedba
             task->file);
     fprintf(payload, "### PROJECT CONTEXT ###\n%s\n\n", context_text ? context_text : "");
     fprintf(payload, "### STYLE GUIDELINES ###\n%s\n\n", style_text ? style_text : "");
-    fprintf(payload, "### ALREADY BUILT ###\n");
-    ledger_write_built_summary(payload, ledger_path);
+    fprintf(payload, "### VERIFIED FILES ###\n");
+    ledger_write_built_summary(payload, ledger_path, task->reads);
     fprintf(payload, "\n### CURRENT GOAL ###\n%s\n\n", task->goal);
     write_reads(payload, project_path, task->reads);
     write_ui_templates(payload, project_path, task->ui);
     fprintf(payload, "### CURRENT CONTENT OF %s ###\n%s\n\n", task->file, current_text ? current_text : "(new file)");
     fprintf(payload, "### TASK ###\n%s\n", task->description);
+    if (task->verify[0]) fprintf(payload, "Acceptance check: %s\n", task->verify);
     if (feedback[0] != '\0') {
         fprintf(payload, "\n### PREVIOUS ATTEMPT FAILED ###\n%s\n", feedback);
     }

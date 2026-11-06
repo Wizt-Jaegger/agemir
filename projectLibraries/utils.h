@@ -29,13 +29,13 @@
 #define MKDIR(path) _mkdir(path)
 #define POPEN _popen
 #define PCLOSE _pclose
-#define START_OLLAMA_SERVER "start /B ollama serve > NUL 2>&1"
+#define START_OLLAMA_SERVER "start \"\" /B ollama.exe serve < NUL > NUL 2>&1"
 #define LIST_DIR_FORMAT "dir /b \"%s\" 2> NUL"
 #define DEV_NULL " > NUL 2>&1"
 #define CLEAN "cls"
 #define VERIFY_COMMAND_FORMAT "cd /d \"%s\" && (%s) > \"%s\" 2>&1"
 #ifndef INSTALL_OLLAMA
-#define INSTALL_OLLAMA "winget install ollama"
+#define INSTALL_OLLAMA "winget install --id Ollama.Ollama --exact"
 #endif
 #else
 #include <unistd.h>
