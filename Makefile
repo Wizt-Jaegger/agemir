@@ -8,6 +8,7 @@ CORE_LIBRARY := $(BUILD_DIR)/libagemir_core.a
 CLI := $(BUILD_DIR)/agemir
 API_SMOKE := $(BUILD_DIR)/api-smoke
 API_SIM_SMOKE := $(BUILD_DIR)/api-simulation-smoke
+CORE_HEADERS := $(wildcard projectLibraries/*.h)
 
 .PHONY: all cli core test-api clean
 
@@ -16,12 +17,12 @@ all: cli core
 $(BUILD_DIR):
 	mkdir -p $@
 
-$(CLI): Agemir.c agemir_api.h | $(BUILD_DIR)
+$(CLI): Agemir.c agemir_api.h $(CORE_HEADERS) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -DOLLAMA_ENABLED=1 $< -o $@
 
 cli: $(CLI)
 
-$(CORE_OBJECT): agemir_api.c agemir_api.h Agemir.c | $(BUILD_DIR)
+$(CORE_OBJECT): agemir_api.c agemir_api.h Agemir.c $(CORE_HEADERS) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -DOLLAMA_ENABLED=1 -c $< -o $@
 
 $(CORE_LIBRARY): $(CORE_OBJECT)

@@ -54,15 +54,30 @@
 #endif
 #endif
 
-#define CONFIG_DIR "resources/config"
-#define CONFIG_PATH CONFIG_DIR "/config.txt"
 #define CONFIG_LINE 1024
-#define MODELS_PATH "resources/models.txt"
-#define TEMPLATE_SOURCE "resources/templates/project_template.txt"
-#define EXAMPLE_TEMPLATE_PATH "resources/templates/example_template.txt"
+#define CONFIG_PATH agemir_config_path()
+#define MODELS_PATH agemir_resource_path("models.txt")
+#define TEMPLATE_SOURCE agemir_resource_path("templates/project_template.txt")
+#define EXAMPLE_TEMPLATE_PATH agemir_resource_path("templates/example_template.txt")
 #define TEMPLATE_OUTPUT "project_template.txt"
-#define UI_TEMPLATES_DIR "resources/UI_templates_Agents"
-#define ASSET_SOURCES_PATH "resources/internet-sources.txt"
+#define UI_TEMPLATES_DIR agemir_resource_path("UI_templates_Agents")
+#define ASSET_SOURCES_PATH agemir_resource_path("internet-sources.txt")
+
+static const char *agemir_resource_path(const char *relative_path) {
+    const char *directory = getenv("AGEMIR_RESOURCE_DIR");
+    if (!directory || !*directory) directory = "resources";
+    static char path[512];
+    size_t length = strlen(directory);
+    snprintf(path, sizeof(path), "%s%s%s", directory,
+             length && (directory[length - 1] == '/' || directory[length - 1] == '\\') ? "" : "/",
+             relative_path);
+    return path;
+}
+
+static const char *agemir_config_path(void) {
+    const char *path = getenv("AGEMIR_CONFIG_FILE");
+    return path && *path ? path : agemir_resource_path("config/config.txt");
+}
 #define MAX_FILE_BYTES (64L * 1024 * 1024)
 #define UI_STRING_COUNT 64
 
@@ -489,12 +504,12 @@ void load_language(int lang_choice) {
 
     const char* filepath;
     switch (lang_choice) {
-        case 1: filepath = "resources/languages/English.txt"; break;
-        case 2: filepath = "resources/languages/Spanish.txt"; break;
-        case 3: filepath = "resources/languages/French.txt"; break;
-        case 4: filepath = "resources/languages/German.txt"; break;
-        case 5: filepath = "resources/languages/Japanese.txt"; break;
-        default: filepath = "resources/languages/English.txt"; break;
+        case 1: filepath = agemir_resource_path("languages/English.txt"); break;
+        case 2: filepath = agemir_resource_path("languages/Spanish.txt"); break;
+        case 3: filepath = agemir_resource_path("languages/French.txt"); break;
+        case 4: filepath = agemir_resource_path("languages/German.txt"); break;
+        case 5: filepath = agemir_resource_path("languages/Japanese.txt"); break;
+        default: filepath = agemir_resource_path("languages/English.txt"); break;
     }
 
     FILE *f = fopen(filepath, "r");

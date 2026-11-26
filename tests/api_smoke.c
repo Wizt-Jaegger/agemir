@@ -20,6 +20,12 @@ static void write_state(const char *directory) {
 }
 
 int main(void) {
+    assert(system("mkdir -p api-smoke-resources/languages") == 0);
+    FILE *language_file = fopen("api-smoke-resources/languages/English.txt", "w");
+    assert(language_file);
+    fputs("API smoke language\n", language_file);
+    fclose(language_file);
+    assert(setenv("AGEMIR_RESOURCE_DIR", "api-smoke-resources", 1) == 0);
     AgemirRuntime *runtime = agemir_runtime_create();
     assert(runtime);
 
@@ -39,6 +45,9 @@ int main(void) {
     assert(!agemir_runtime_get_setting(runtime, "model", value, 1));
     assert(value[0] == '\0');
     assert(agemir_runtime_set_setting(runtime, "project_path", "/tmp/agemir work"));
+    FILE *isolated_config = fopen("api-smoke-resources/config/config.txt", "r");
+    assert(isolated_config);
+    fclose(isolated_config);
     char project_path[512] = "";
     assert(agemir_runtime_get_setting(runtime, "project_path", project_path, sizeof(project_path)));
     assert(strcmp(project_path, "/tmp/agemir work") == 0);
