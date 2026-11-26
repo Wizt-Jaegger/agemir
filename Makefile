@@ -32,7 +32,7 @@ $(API_SMOKE): tests/api_smoke.c agemir_api.h $(CORE_OBJECT) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< $(CORE_OBJECT) -o $@
 
 test-api: $(API_SMOKE)
-	tmp=$$(mktemp -d); ln -s $(CURDIR)/resources $$tmp/resources; (cd $$tmp && $(abspath $(API_SMOKE))); status=$$?; rm -rf $$tmp; exit $$status
+	tmp=$$(mktemp -d); cp -R resources $$tmp/resources; (cd $$tmp && $(abspath $(API_SMOKE))); status=$$?; rm -rf $$tmp; exit $$status
 
 clean:
 	rm -rf $(BUILD_DIR)
