@@ -2,6 +2,7 @@
 Name=Agemir
 Comment=Build software projects with a local model
 Exec=AppRun
+Icon=agemir
 Terminal=false
 Type=Application
 Categories=Development;Utility;

@@ -10,8 +10,13 @@ if [ -d "$APPDIR/apprun-hooks" ]; then
     done
 fi
 
+# The GTK deployment hook defaults to X11. Let GTK choose Wayland or X11 from
+# the host session so the AppImage also runs on Wayland-only desktops.
+unset GDK_BACKEND
+
 export AGEMIR_RESOURCE_DIR="$APPDIR/usr/share/agemir/resources"
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME:?HOME is not set}/.config}"
 export AGEMIR_CONFIG_FILE="$XDG_CONFIG_HOME/agemir/config.txt"
+mkdir -p "$XDG_CONFIG_HOME/agemir"
 
 exec "$APPDIR/usr/bin/agemir" "$@"

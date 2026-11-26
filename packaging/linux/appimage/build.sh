@@ -37,7 +37,8 @@ if [[ -z "$version" ]]; then
     exit 2
 fi
 
-DEPLOY_GTK_VERSION=4 OUTPUT="$output_dir/Agemir-$version-x86_64.AppImage" \
+NO_STRIP=1 DEPLOY_GTK_VERSION=4 OUTPUT="$output_dir/Agemir-$version-x86_64.AppImage" \
     linuxdeploy --appdir "$appdir" \
         --desktop-file "$script_dir/agemir.desktop" \
+        --icon-file "$script_dir/agemir.svg" \
         --plugin gtk --output appimage
