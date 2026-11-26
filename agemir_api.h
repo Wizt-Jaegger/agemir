@@ -33,11 +33,24 @@ typedef struct AgemirRequest {
 } AgemirRequest;
 
 typedef struct AgemirStatus {
+    /* Legacy persisted state fields. */
     char state[32];
     char task[512];
     char reason[200];
     int attempts;
     char updated[32];
+    /* Thread-safe live execution snapshot. */
+    char phase[32];
+    char current_task[512];
+    char current_file[256];
+    char current_command[512];
+    int total_tasks;
+    int completed_tasks;
+    int retry_attempt;
+    int pause_requested;
+    int paused;
+    int complete;
+    int failed;
 } AgemirStatus;
 
 typedef struct AgemirProject {
@@ -106,9 +119,11 @@ int agemir_runtime_current_model(AgemirRuntime *runtime, char *tag, size_t tag_s
 int agemir_runtime_execute(AgemirRuntime *runtime, const AgemirRequest *request,
                            char *error, size_t error_size);
 /*
- * Copies a caller-owned, best-effort status snapshot. It is not an atomic
- * multi-field transaction while the core is updating progress. This function
- * and pause() are the only API calls intended to overlap execute().
+ * Copies a caller-owned, coherent status snapshot. Live fields are protected
+ * from the worker thread; persisted legacy fields are used when no live run
+ * exists. Pass NULL or an empty project path to retrieve the active operation
+ * snapshot (useful for template generation and benchmarks). This function and
+ * pause() are safe to overlap execute().
  */
 int agemir_runtime_get_status(AgemirRuntime *runtime, const char *project_path,
                               AgemirStatus *status);

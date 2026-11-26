@@ -50,8 +50,11 @@ int main(void) {
     for (int i = 0; i < 500 && !atomic_load_explicit(&worker.done, memory_order_acquire); i++) {
         if (agemir_runtime_get_status(runtime, "api-simulation-project", &status) &&
             strcmp(status.state, "running") == 0 &&
-            strcmp(status.task, "sleep 0.5; printf done > worker-result.txt") == 0 &&
-            status.attempts == 1) {
+            strcmp(status.current_task, "Command progress smoke") == 0 &&
+            strcmp(status.current_command, "sleep 0.5; printf done > worker-result.txt") == 0 &&
+            status.total_tasks == 1 && status.completed_tasks == 0 &&
+            status.retry_attempt == 1 && !status.pause_requested &&
+            !status.paused && !status.complete && !status.failed) {
             saw_running = 1;
         }
         nanosleep(&interval, NULL);
@@ -63,6 +66,10 @@ int main(void) {
     assert(saw_running);
     assert(agemir_runtime_get_status(runtime, "api-simulation-project", &status));
     assert(strcmp(status.state, "finished") == 0);
+    assert(strcmp(status.phase, "completed") == 0);
+    assert(status.total_tasks == 1);
+    assert(status.completed_tasks == 1);
+    assert(status.complete && !status.failed && !status.paused);
 
     FILE *result = fopen("api-simulation-project/worker-result.txt", "r");
     assert(result);

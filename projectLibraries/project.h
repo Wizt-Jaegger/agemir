@@ -408,6 +408,18 @@ int ledger_next_pending(const char* ledger_path, Task* task) {
     return found;
 }
 
+int ledger_pending_count(const char* ledger_path) {
+    FILE *f = fopen(ledger_path, "rb");
+    if (!f) return 0;
+    int count = 0;
+    char line[4096];
+    while (fgets(line, sizeof(line), f)) {
+        if (strncmp(line, "[ ]", 3) == 0) count++;
+    }
+    fclose(f);
+    return count;
+}
+
 void ledger_mark(const char* ledger_path, long offset, char marker) {
     FILE *f = fopen(ledger_path, "r+b");
     if (!f) return;

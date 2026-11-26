@@ -88,6 +88,9 @@ int main(void) {
     assert(strcmp(status.state, "running") == 0);
     assert(strcmp(status.task, "Create native window") == 0);
     assert(status.attempts == 3);
+    assert(strcmp(status.phase, "running") == 0);
+    assert(strcmp(status.current_task, "Create native window") == 0);
+    assert(status.retry_attempt == 3);
     assert(!agemir_runtime_get_status(runtime, "api-smoke-missing", &status));
 
     assert(agemir_runtime_pause(runtime, "api-smoke-project", error, sizeof(error)));

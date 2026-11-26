@@ -20,6 +20,48 @@ typedef enum {
     TASK_ERROR
 } TaskResult;
 
+typedef struct AgentProgress {
+    char phase[32];
+    char task[512];
+    char file[256];
+    char command[512];
+    char reason[200];
+    int total_tasks;
+    int completed_tasks;
+    int retry_attempt;
+    int pause_requested;
+    int paused;
+    int complete;
+    int failed;
+} AgentProgress;
+
+typedef void (*AgentProgressListener)(const AgentProgress* progress, void* context);
+static AgentProgressListener agent_progress_listener = NULL;
+static void* agent_progress_context = NULL;
+
+void agent_report(const char* phase, int total, int completed, const Task* task,
+                  int retry_attempt, int pause, int complete, int failed,
+                  const char* reason) {
+    if (!agent_progress_listener) return;
+    AgentProgress progress;
+    memset(&progress, 0, sizeof(progress));
+    snprintf(progress.phase, sizeof(progress.phase), "%s", phase ? phase : "");
+    if (task) {
+        snprintf(progress.task, sizeof(progress.task), "%s", task->description);
+        if (task->is_command) snprintf(progress.command, sizeof(progress.command), "%s", task->verify);
+        else snprintf(progress.file, sizeof(progress.file), "%s", task->file);
+    }
+    snprintf(progress.reason, sizeof(progress.reason), "%s", reason ? reason : "");
+    progress.total_tasks = total;
+    progress.completed_tasks = completed;
+    progress.retry_attempt = retry_attempt;
+    progress.pause_requested = pause;
+    progress.paused = pause;
+    progress.complete = complete;
+    progress.failed = failed;
+    agent_progress_listener(&progress, agent_progress_context);
+}
+
 // Set by Ctrl+C while the agent runs. The agent finishes the current step and pauses.
 static volatile sig_atomic_t pause_requested = 0;
 
@@ -463,6 +505,7 @@ TaskResult execute_command_task(const char* project_path, const Task* task, int*
         }
 
         *attempts_used = attempt;
+        agent_report(attempt == 1 ? "running" : "retrying", 0, 0, task, attempt, 0, 0, 0, "");
         printf("%s %d/%d\n", ui_strings[57], attempt, MAX_ATTEMPTS);
         save_state(project_path, "running", task_label(task), attempt, "");
 
@@ -509,6 +552,7 @@ TaskResult execute_file_task(const char* project_path, const char* model, const 
         }
 
         *attempts_used = attempt;
+        agent_report(attempt == 1 ? "running" : "retrying", 0, 0, task, attempt, 0, 0, 0, "");
         printf("%s %d/%d\n", ui_strings[57], attempt, MAX_ATTEMPTS);
         save_state(project_path, "running", task->file, attempt, "");
 
@@ -590,6 +634,7 @@ int run_agent(const char* project_path, const char* model) {
         printf("%s\n", ui_strings[11]);
         return 0;
     }
+    agent_report("preparing", 0, 0, NULL, 0, 0, 0, 0, "Preparing project run");
     if (!ensure_ollama_ready() || !ensure_model(model)) {
         return 0;
     }
@@ -609,12 +654,15 @@ int run_agent(const char* project_path, const char* model) {
     printf("%s\n", ui_strings[32]);
     ledger_reset_failed(ledger_path);
 
+    const int total_tasks = ledger_pending_count(ledger_path);
+
     int completed = 0;
     int stopped = 0;
     Task task;
     memset(&task, 0, sizeof(task));
 
     while (!stopped && ledger_next_pending(ledger_path, &task)) {
+        agent_report("running", total_tasks, completed, &task, 0, 0, 0, 0, "");
         printf("\n%s %s\n", ui_strings[12], task.description);
 
         int attempts = 0;
@@ -630,26 +678,31 @@ int run_agent(const char* project_path, const char* model) {
         if (result == TASK_DONE) {
             ledger_mark(ledger_path, task.ledger_offset, 'x');
             completed++;
+            agent_report("running", total_tasks, completed, &task, attempts, 0, 0, 0, "");
             printf("%s %s\n", ui_strings[29], task_label(&task));
         } else if (result == TASK_FAILED) {
             ledger_mark(ledger_path, task.ledger_offset, '!');
             save_state(project_path, "failed", task_label(&task), attempts, "the task kept failing");
             printf("\n%s %s\n%s\n%s %s\n", ui_strings[30], task_label(&task), ui_strings[51], ui_strings[52], logs_path);
             stopped = 1;
+            agent_report("failed", total_tasks, completed, &task, attempts, 0, 0, 1, "the task kept failing");
         } else if (result == TASK_PAUSED) {
             save_state(project_path, "paused", task_label(&task), attempts, "paused by the user");
             printf("\n%s\n", ui_strings[53]);
             stopped = 1;
+            agent_report("paused", total_tasks, completed, &task, attempts, 1, 0, 0, "paused by the user");
         } else {
             save_state(project_path, "error", task_label(&task), attempts, error_line);
             printf("\n%s %s\n%s\n%s %s\n", ui_strings[55], error_line, ui_strings[56], ui_strings[52], logs_path);
             stopped = 1;
+            agent_report("failed", total_tasks, completed, &task, attempts, 0, 0, 1, error_line);
         }
     }
 
     if (!stopped) {
         save_state(project_path, "finished", "", 0, "");
         printf("\n%s (ok: %d)\n", ui_strings[31], completed);
+        agent_report("completed", total_tasks, completed, NULL, 0, 0, 1, 0, "");
     }
 
     signal(SIGINT, SIG_DFL);
