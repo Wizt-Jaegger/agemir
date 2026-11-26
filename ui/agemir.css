@@ -1,0 +1,7 @@
+window { background: @window_bg_color; }
+.page { margin: 24px; }
+.card { padding: 18px; border-radius: 14px; background: alpha(@card_bg_color, 0.92); }
+.heading { font-size: 1.5rem; font-weight: 700; }
+.muted { color: @insensitive_fg_color; }
+.status-ok { color: #2a7b48; font-weight: 600; }
+.status-error { color: #b42318; font-weight: 600; }
