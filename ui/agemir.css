@@ -1,6 +1,7 @@
 window, .page { background: #282a36; color: #f8f8f2; }
 headerbar { background: #21222c; border-bottom: 1px solid #44475a; }
 .page { min-width: 620px; }
+.feedback { background: #21222c; border-top: 1px solid #44475a; }
 .title { font-size: 2rem; font-weight: 800; color: #b5deff; }
 .subtitle, .muted { color: #b0b7d3; }
 .field-label { font-weight: 700; color: #f8f8f2; margin-top: 8px; }
