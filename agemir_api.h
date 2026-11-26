@@ -62,6 +62,8 @@ int agemir_runtime_get_setting(AgemirRuntime *runtime, const char *key,
                                char *value, size_t value_size);
 int agemir_runtime_set_setting(AgemirRuntime *runtime, const char *key,
                                const char *value);
+/* Checks only whether the Ollama executable is installed; it does not start it. */
+int agemir_runtime_ollama_available(void);
 /* Project indices are zero-based; returned fields are copied into the struct. */
 int agemir_runtime_project_count(AgemirRuntime *runtime);
 int agemir_runtime_project_at(AgemirRuntime *runtime, int index,

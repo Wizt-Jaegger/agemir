@@ -65,6 +65,10 @@ void agemir_runtime_destroy(AgemirRuntime *runtime) {
     free(runtime);
 }
 
+int agemir_runtime_ollama_available(void) {
+    return ollama_installed();
+}
+
 int agemir_runtime_get_setting(AgemirRuntime *runtime, const char *key,
                                char *value, size_t value_size) {
     if (!runtime || !key || !value || value_size == 0) return 0;

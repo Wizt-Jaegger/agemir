@@ -20,7 +20,7 @@ static void *run_request(void *data) {
     WorkerRequest *worker = data;
     AgemirRequest request = {0};
     request.operation = AGEMIR_RUN_PROJECT;
-    request.project_path = "project";
+    request.project_path = "api-simulation-project";
     request.model = "simulation-smoke";
     worker->succeeded = agemir_runtime_execute(worker->runtime, &request,
                                                 worker->error, sizeof(worker->error));
@@ -31,9 +31,9 @@ static void *run_request(void *data) {
 int main(void) {
     AgemirRuntime *runtime = agemir_runtime_create();
     assert(runtime);
-    assert(system("mkdir -p project") == 0);
+    assert(system("mkdir -p api-simulation-project") == 0);
 
-    FILE *ledger = fopen("project/tasks.txt", "w");
+    FILE *ledger = fopen("api-simulation-project/tasks.txt", "w");
     assert(ledger);
     fputs("[ ]\t\t\tsleep 0.5; printf done > worker-result.txt\t\tCommand progress smoke\n", ledger);
     fclose(ledger);
@@ -48,7 +48,7 @@ int main(void) {
     AgemirStatus status = {0};
     const struct timespec interval = {0, 10000000};
     for (int i = 0; i < 500 && !atomic_load_explicit(&worker.done, memory_order_acquire); i++) {
-        if (agemir_runtime_get_status(runtime, "project", &status) &&
+        if (agemir_runtime_get_status(runtime, "api-simulation-project", &status) &&
             strcmp(status.state, "running") == 0 &&
             strcmp(status.task, "sleep 0.5; printf done > worker-result.txt") == 0 &&
             status.attempts == 1) {
@@ -61,10 +61,10 @@ int main(void) {
     assert(worker.succeeded);
     assert(worker.error[0] == '\0');
     assert(saw_running);
-    assert(agemir_runtime_get_status(runtime, "project", &status));
+    assert(agemir_runtime_get_status(runtime, "api-simulation-project", &status));
     assert(strcmp(status.state, "finished") == 0);
 
-    FILE *result = fopen("project/worker-result.txt", "r");
+    FILE *result = fopen("api-simulation-project/worker-result.txt", "r");
     assert(result);
     char text[16] = "";
     assert(fgets(text, sizeof(text), result));

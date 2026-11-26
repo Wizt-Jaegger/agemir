@@ -23,6 +23,16 @@ int main(void) {
     AgemirRuntime *runtime = agemir_runtime_create();
     assert(runtime);
 
+    const int ollama_was_available = agemir_runtime_ollama_available();
+    const char *initial_path = getenv("PATH");
+    char *saved_initial_path = strdup(initial_path ? initial_path : "");
+    assert(saved_initial_path);
+    assert(setenv("PATH", "/agemir-test-no-commands", 1) == 0);
+    assert(!agemir_runtime_ollama_available());
+    assert(setenv("PATH", saved_initial_path, 1) == 0);
+    free(saved_initial_path);
+    assert(agemir_runtime_ollama_available() == ollama_was_available);
+
     char value[64] = "unchanged";
     assert(agemir_runtime_get_setting(runtime, "model", value, sizeof(value)));
     assert(value[0]);
@@ -51,23 +61,23 @@ int main(void) {
     assert(!agemir_runtime_execute(runtime, NULL, error, sizeof(error)));
     assert(strstr(error, "required"));
 
-    assert(system("mkdir -p project") == 0);
-    write_state("project");
+    assert(system("mkdir -p api-smoke-project") == 0);
+    write_state("api-smoke-project");
     AgemirStatus status;
-    assert(agemir_runtime_get_status(runtime, "project", &status));
+    assert(agemir_runtime_get_status(runtime, "api-smoke-project", &status));
     assert(strcmp(status.state, "running") == 0);
     assert(strcmp(status.task, "Create native window") == 0);
     assert(status.attempts == 3);
-    assert(!agemir_runtime_get_status(runtime, "missing", &status));
+    assert(!agemir_runtime_get_status(runtime, "api-smoke-missing", &status));
 
-    assert(agemir_runtime_pause(runtime, "project", error, sizeof(error)));
-    FILE *pause_file = fopen("project/PAUSE", "r");
+    assert(agemir_runtime_pause(runtime, "api-smoke-project", error, sizeof(error)));
+    FILE *pause_file = fopen("api-smoke-project/PAUSE", "r");
     assert(pause_file);
     fclose(pause_file);
     assert(!agemir_runtime_pause(runtime, "", error, sizeof(error)));
     assert(strstr(error, "required"));
 
-    FILE *ledger = fopen("project/tasks.txt", "w");
+    FILE *ledger = fopen("api-smoke-project/tasks.txt", "w");
     assert(ledger);
     fclose(ledger);
     const char *current_path = getenv("PATH");
@@ -75,7 +85,7 @@ int main(void) {
     assert(saved_path);
     assert(setenv("PATH", "/agemir-test-no-commands", 1) == 0);
     request.operation = AGEMIR_RUN_PROJECT;
-    request.project_path = "project";
+    request.project_path = "api-smoke-project";
     request.model = "test-model";
     assert(!agemir_runtime_execute(runtime, &request, error, sizeof(error)));
     assert(strstr(error, "Ollama is not installed"));

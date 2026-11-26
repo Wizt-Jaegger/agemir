@@ -101,7 +101,10 @@ AgemirWindow::AgemirWindow() {
     pause_.signal_clicked().connect(sigc::mem_fun(*this, &AgemirWindow::request_pause));
     save_settings_.signal_clicked().connect(sigc::mem_fun(*this, &AgemirWindow::save_settings));
     completed_.connect(sigc::mem_fun(*this, &AgemirWindow::finish_request));
+    runtime_check_completed_.connect(
+        sigc::mem_fun(*this, &AgemirWindow::finish_runtime_check));
     load_settings();
+    check_runtime();
     set_message(runtime_ ? "Ready. Requests run outside the GTK UI thread." :
                 "Could not initialize the Agemir C runtime.", !runtime_);
 }
@@ -109,6 +112,7 @@ AgemirWindow::AgemirWindow() {
 AgemirWindow::~AgemirWindow() {
     status_poll_.disconnect();
     if (worker_.joinable()) worker_.join();
+    if (runtime_check_worker_.joinable()) runtime_check_worker_.join();
     agemir_runtime_destroy(runtime_);
 }
 
@@ -134,8 +138,46 @@ void AgemirWindow::load_settings() {
         if (project_path_.get_text().empty()) project_path_.set_text(project_path.data());
     }
     int projects = agemir_runtime_project_count(runtime_);
-    runtime_check_.set_text("C runtime initialized; registered projects: " + std::to_string(projects) +
-                            ". Model availability is checked when work begins.");
+    runtime_check_.set_text("C runtime initialized; registered projects: " + std::to_string(projects) + ".");
+}
+
+void AgemirWindow::check_runtime() {
+    if (!runtime_) {
+        runtime_check_.set_text("Could not initialize the Agemir C runtime.");
+        runtime_check_.remove_css_class("status-ok");
+        runtime_check_.add_css_class("status-error");
+        return;
+    }
+    if (runtime_check_worker_.joinable()) runtime_check_worker_.join();
+    {
+        std::lock_guard<std::mutex> lock(result_mutex_);
+        ollama_available_ = -1;
+    }
+    runtime_check_.set_text("C runtime initialized. Checking Ollama availability…");
+    runtime_check_worker_ = std::thread([this] {
+        const int available = agemir_runtime_ollama_available();
+        {
+            std::lock_guard<std::mutex> lock(result_mutex_);
+            ollama_available_ = available;
+        }
+        runtime_check_completed_.emit();
+    });
+}
+
+void AgemirWindow::finish_runtime_check() {
+    if (runtime_check_worker_.joinable()) runtime_check_worker_.join();
+    int available;
+    {
+        std::lock_guard<std::mutex> lock(result_mutex_);
+        available = ollama_available_;
+    }
+    const bool found = available > 0;
+    runtime_check_.set_text(found ?
+        "Ollama executable found. Server and model readiness are checked when work begins." :
+        "Ollama executable not found. Install Ollama before starting a request.");
+    runtime_check_.remove_css_class("status-ok");
+    runtime_check_.remove_css_class("status-error");
+    runtime_check_.add_css_class(found ? "status-ok" : "status-error");
 }
 
 void AgemirWindow::save_settings() {

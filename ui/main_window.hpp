@@ -22,17 +22,22 @@ private:
     void request_pause();
     void save_settings();
     void load_settings();
+    void check_runtime();
+    void finish_runtime_check();
     void set_message(const Glib::ustring& text, bool is_error = false);
 
     AgemirRuntime *runtime_ = nullptr;
     std::thread worker_;
+    std::thread runtime_check_worker_;
     std::mutex result_mutex_;
     Glib::Dispatcher completed_;
+    Glib::Dispatcher runtime_check_completed_;
     sigc::connection status_poll_;
     bool busy_ = false;
     bool active_run_ = false;
     bool pause_requested_ = false;
     bool result_ok_ = false;
+    int ollama_available_ = -1;
     std::string active_project_path_;
     std::string result_message_;
 
