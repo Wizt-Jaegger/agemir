@@ -7,6 +7,7 @@
 #include <gtkmm/stylecontext.h>
 
 #include <array>
+#include <cstdlib>
 #include <utility>
 
 namespace {
@@ -81,8 +82,10 @@ AgemirWindow::AgemirWindow() {
     settings_heading->add_css_class("heading");
     settings->append(*settings_heading);
     user_name_.set_placeholder_text("Name shown by the CLI and native app");
+    default_project_path_.set_placeholder_text("Folder used when starting a new request");
     language_.set_placeholder_text("Language: 1 English, 2 Spanish, 3 French, 4 German, 5 Japanese");
     add_field(*settings, "Name", user_name_);
+    add_field(*settings, "Default project folder", default_project_path_);
     add_field(*settings, "Language", language_);
     save_settings_.add_css_class("suggested-action");
     settings->append(save_settings_);
@@ -125,6 +128,11 @@ void AgemirWindow::load_settings() {
         model_.set_text(value.data());
     if (agemir_runtime_get_setting(runtime_, "language", value.data(), value.size()))
         language_.set_text(value.data());
+    std::array<char, 512> project_path{};
+    if (agemir_runtime_get_setting(runtime_, "project_path", project_path.data(), project_path.size())) {
+        default_project_path_.set_text(project_path.data());
+        if (project_path_.get_text().empty()) project_path_.set_text(project_path.data());
+    }
     int projects = agemir_runtime_project_count(runtime_);
     runtime_check_.set_text("C runtime initialized; registered projects: " + std::to_string(projects) +
                             ". Model availability is checked when work begins.");
@@ -132,10 +140,23 @@ void AgemirWindow::load_settings() {
 
 void AgemirWindow::save_settings() {
     if (!runtime_ || busy_) return;
-    bool ok = agemir_runtime_set_setting(runtime_, "username", user_name_.get_text().c_str()) &&
-              agemir_runtime_set_setting(runtime_, "model", model_.get_text().c_str()) &&
-              agemir_runtime_set_setting(runtime_, "language", language_.get_text().c_str());
-    set_message(ok ? "Settings saved." : "Settings need a name, a model, and a language from 1 to 5.", !ok);
+    const std::string name = user_name_.get_text();
+    const std::string model = model_.get_text();
+    const std::string project_path = default_project_path_.get_text();
+    const std::string language = language_.get_text();
+    char *end = nullptr;
+    const long language_number = std::strtol(language.c_str(), &end, 10);
+    const bool valid = !name.empty() && name.size() < 64 && name.find_first_of("\r\n") == std::string::npos &&
+                       !model.empty() && model.size() < 64 && model.find_first_of("\r\n") == std::string::npos &&
+                       project_path.size() < 512 && project_path.find_first_of("\r\n") == std::string::npos &&
+                       !language.empty() && end && *end == '\0' && language_number >= 1 && language_number <= 5;
+    const bool ok = valid &&
+                    agemir_runtime_set_setting(runtime_, "username", name.c_str()) &&
+                    agemir_runtime_set_setting(runtime_, "model", model.c_str()) &&
+                    agemir_runtime_set_setting(runtime_, "project_path", project_path.c_str()) &&
+                    agemir_runtime_set_setting(runtime_, "language", language.c_str());
+    set_message(ok ? "Settings saved." :
+                "Check the name, model, project folder, and language (1 to 5).", !ok);
     if (ok) load_settings();
 }
 

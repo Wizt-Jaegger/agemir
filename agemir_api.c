@@ -68,7 +68,7 @@ void agemir_runtime_destroy(AgemirRuntime *runtime) {
 int agemir_runtime_get_setting(AgemirRuntime *runtime, const char *key,
                                char *value, size_t value_size) {
     if (!runtime || !key || !value || value_size == 0) return 0;
-    char setting[64];
+    char setting[512];
     if (strcmp(key, "username") == 0) {
         if (!config_get(key, setting, sizeof(setting))) setting[0] = '\0';
         return copy_api_text(value, value_size, setting);
@@ -76,6 +76,10 @@ int agemir_runtime_get_setting(AgemirRuntime *runtime, const char *key,
     if (strcmp(key, "model") == 0) {
         if (!config_get(key, setting, sizeof(setting)))
             snprintf(setting, sizeof(setting), "auto");
+        return copy_api_text(value, value_size, setting);
+    }
+    if (strcmp(key, "project_path") == 0) {
+        if (!config_get(key, setting, sizeof(setting))) setting[0] = '\0';
         return copy_api_text(value, value_size, setting);
     }
     if (strcmp(key, "language") == 0 || strcmp(key, "benchmark_v2") == 0) {
@@ -98,6 +102,11 @@ int agemir_runtime_set_setting(AgemirRuntime *runtime, const char *key,
     }
     if (strcmp(key, "model") == 0) {
         if (!*value || strlen(value) >= 64 || strpbrk(value, "\r\n")) return 0;
+        config_set(key, value);
+        return 1;
+    }
+    if (strcmp(key, "project_path") == 0) {
+        if (strlen(value) >= 512 || strpbrk(value, "\r\n")) return 0;
         config_set(key, value);
         return 1;
     }

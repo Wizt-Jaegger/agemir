@@ -28,6 +28,18 @@ int main(void) {
     assert(value[0]);
     assert(!agemir_runtime_get_setting(runtime, "model", value, 1));
     assert(value[0] == '\0');
+    assert(agemir_runtime_set_setting(runtime, "project_path", "/tmp/agemir work"));
+    char project_path[512] = "";
+    assert(agemir_runtime_get_setting(runtime, "project_path", project_path, sizeof(project_path)));
+    assert(strcmp(project_path, "/tmp/agemir work") == 0);
+    char short_path[8] = "short";
+    assert(!agemir_runtime_get_setting(runtime, "project_path", short_path, sizeof(short_path)));
+    assert(short_path[0] == '\0');
+    char too_long_path[513];
+    memset(too_long_path, 'x', sizeof(too_long_path) - 1);
+    too_long_path[sizeof(too_long_path) - 1] = '\0';
+    assert(!agemir_runtime_set_setting(runtime, "project_path", too_long_path));
+    assert(!agemir_runtime_set_setting(runtime, "project_path", "bad\npath"));
     assert(!agemir_runtime_set_setting(runtime, "language", "0"));
     assert(agemir_runtime_set_setting(runtime, "language", "1"));
     assert(!agemir_runtime_set_setting(runtime, "unknown", "value"));

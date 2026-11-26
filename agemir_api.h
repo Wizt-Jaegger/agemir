@@ -53,9 +53,10 @@ AgemirRuntime *agemir_runtime_create(void);
 void agemir_runtime_destroy(AgemirRuntime *runtime);
 
 /*
- * Settings keys are username, model, language, and benchmark_v2 for get;
- * set accepts username, model, and language. String results are copied into
- * the caller's buffer. A too-small output buffer fails without allocating.
+ * Settings keys are username, model, project_path, language, and benchmark_v2
+ * for get; set accepts username, model, project_path, and language. String
+ * results are copied into the caller's buffer. A too-small output buffer fails
+ * without allocating.
  */
 int agemir_runtime_get_setting(AgemirRuntime *runtime, const char *key,
                                char *value, size_t value_size);

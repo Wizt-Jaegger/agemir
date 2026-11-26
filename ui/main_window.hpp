@@ -48,6 +48,7 @@ private:
     Gtk::Label status_;
 
     Gtk::Entry user_name_;
+    Gtk::Entry default_project_path_;
     Gtk::Entry language_;
     Gtk::Label runtime_check_;
     Gtk::Button save_settings_{"Save settings"};
