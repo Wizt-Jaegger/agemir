@@ -30,6 +30,23 @@ static void set_api_error(char *error, size_t error_size, const char *message) {
     error[length] = '\0';
 }
 
+/* API callers cannot answer the legacy CLI's install prompt on stdin. */
+static int prepare_api_execution(char *error, size_t error_size) {
+#if OLLAMA_ENABLED
+    if (!ollama_installed()) {
+        set_api_error(error, error_size,
+                      "Ollama is not installed; install it before starting this request.");
+        return 0;
+    }
+#endif
+    if (!ensure_ollama_ready()) {
+        set_api_error(error, error_size,
+                      "Ollama could not be started; check that it is installed and available.");
+        return 0;
+    }
+    return 1;
+}
+
 AgemirRuntime *agemir_runtime_create(void) {
     AgemirRuntime *runtime = (AgemirRuntime *)calloc(1, sizeof(*runtime));
     if (!runtime) return NULL;
@@ -132,6 +149,13 @@ int agemir_runtime_execute(AgemirRuntime *runtime, const AgemirRequest *request,
             set_api_error(error, error_size, "project path is required");
             return 0;
         }
+        char ledger_path[1024];
+        join_path(ledger_path, sizeof(ledger_path), request->project_path, "tasks.txt");
+        if (!file_exists(ledger_path)) {
+            set_api_error(error, error_size, "tasks.txt not found in the project path");
+            return 0;
+        }
+        if (!prepare_api_execution(error, error_size)) return 0;
         if (!run_agent(request->project_path, model)) {
             set_api_error(error, error_size, "project run could not start; see console output");
             return 0;
@@ -155,6 +179,7 @@ int agemir_runtime_execute(AgemirRuntime *runtime, const AgemirRequest *request,
                           "valid project path, name, and description are required");
             return 0;
         }
+        if (!prepare_api_execution(error, error_size)) return 0;
         if (!generate_project(model, request->project_name, request->project_path,
                               request->description, request->graphical != 0)) {
             set_api_error(error, error_size, "project generation failed; see console output");

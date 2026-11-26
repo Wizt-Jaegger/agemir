@@ -77,7 +77,9 @@ int agemir_runtime_project_at(AgemirRuntime *runtime, int index,
  * this slice. Callers that need a responsive UI may call execute on their own
  * worker and poll copied get_status() values; future notifications must remain
  * value-based and must not call a UI toolkit from the C core. Core diagnostics
- * may still be printed to stdout/stderr.
+ * may still be printed to stdout/stderr. API execution never prompts to install
+ * Ollama; when enabled, it requires Ollama to be installed, may start its local
+ * server, and may pull the selected model.
  * While execute runs, get_status() and pause() may be used for that project;
  * settings/project-list calls must be serialized outside the active job.
  */

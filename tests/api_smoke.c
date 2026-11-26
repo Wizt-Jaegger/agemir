@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "../agemir_api.h"
 
 #include <assert.h>
@@ -53,6 +54,21 @@ int main(void) {
     fclose(pause_file);
     assert(!agemir_runtime_pause(runtime, "", error, sizeof(error)));
     assert(strstr(error, "required"));
+
+    FILE *ledger = fopen("project/tasks.txt", "w");
+    assert(ledger);
+    fclose(ledger);
+    const char *current_path = getenv("PATH");
+    char *saved_path = strdup(current_path ? current_path : "");
+    assert(saved_path);
+    assert(setenv("PATH", "/agemir-test-no-commands", 1) == 0);
+    request.operation = AGEMIR_RUN_PROJECT;
+    request.project_path = "project";
+    request.model = "test-model";
+    assert(!agemir_runtime_execute(runtime, &request, error, sizeof(error)));
+    assert(strstr(error, "Ollama is not installed"));
+    assert(setenv("PATH", saved_path, 1) == 0);
+    free(saved_path);
 
     agemir_runtime_destroy(runtime);
     puts("api smoke: passed");
