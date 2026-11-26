@@ -66,6 +66,8 @@ AgemirWindow::AgemirWindow() {
     generate_.add_css_class("suggested-action");
     actions->append(generate_);
     actions->append(run_);
+    actions->append(pause_);
+    pause_.set_sensitive(false);
     workspace->append(*actions);
     status_.set_halign(Gtk::Align::START);
     status_.set_wrap();
@@ -93,6 +95,7 @@ AgemirWindow::AgemirWindow() {
 
     generate_.signal_clicked().connect(sigc::mem_fun(*this, &AgemirWindow::submit_generate));
     run_.signal_clicked().connect(sigc::mem_fun(*this, &AgemirWindow::submit_run));
+    pause_.signal_clicked().connect(sigc::mem_fun(*this, &AgemirWindow::request_pause));
     save_settings_.signal_clicked().connect(sigc::mem_fun(*this, &AgemirWindow::save_settings));
     completed_.connect(sigc::mem_fun(*this, &AgemirWindow::finish_request));
     load_settings();
@@ -101,6 +104,7 @@ AgemirWindow::AgemirWindow() {
 }
 
 AgemirWindow::~AgemirWindow() {
+    status_poll_.disconnect();
     if (worker_.joinable()) worker_.join();
     agemir_runtime_destroy(runtime_);
 }
@@ -151,8 +155,12 @@ void AgemirWindow::begin_request(AgemirOperation operation) {
     }
     if (worker_.joinable()) worker_.join();
     busy_ = true;
+    active_run_ = operation == AGEMIR_RUN_PROJECT;
+    pause_requested_ = false;
+    active_project_path_ = path;
     generate_.set_sensitive(false);
     run_.set_sensitive(false);
+    pause_.set_sensitive(false);
     save_settings_.set_sensitive(false);
     set_message("Working… Agemir is running in the background.");
     worker_ = std::thread([this, operation, path, name, model, description, graphical] {
@@ -176,13 +184,51 @@ void AgemirWindow::begin_request(AgemirOperation operation) {
         }
         completed_.emit();
     });
+    status_poll_ = Glib::signal_timeout().connect(
+        sigc::mem_fun(*this, &AgemirWindow::refresh_status), 400);
 }
 
 void AgemirWindow::finish_request() {
     std::lock_guard<std::mutex> lock(result_mutex_);
+    status_poll_.disconnect();
     busy_ = false;
+    pause_.set_sensitive(false);
     generate_.set_sensitive(true);
     run_.set_sensitive(true);
     save_settings_.set_sensitive(true);
     set_message(result_message_, !result_ok_);
+}
+
+bool AgemirWindow::refresh_status() {
+    if (!busy_ || !runtime_ || !active_run_) return busy_;
+
+    AgemirStatus snapshot{};
+    if (!agemir_runtime_get_status(runtime_, active_project_path_.c_str(), &snapshot))
+        return true;
+
+    const std::string state(snapshot.state);
+    const bool failed = state == "failed" || state == "error";
+    std::string text = state.empty() ? "Working" : state;
+    if (snapshot.attempts > 0)
+        text += " · attempt " + std::to_string(snapshot.attempts);
+    if (snapshot.task[0]) text += " · " + std::string(snapshot.task);
+    if (snapshot.reason[0]) text += " · " + std::string(snapshot.reason);
+    set_message(text, failed);
+
+    const bool can_pause = state == "running" && !pause_requested_;
+    pause_.set_sensitive(can_pause);
+    return true;
+}
+
+void AgemirWindow::request_pause() {
+    if (!runtime_ || !busy_ || !active_run_ || pause_requested_) return;
+
+    std::array<char, 256> error{};
+    if (agemir_runtime_pause(runtime_, active_project_path_.c_str(), error.data(), error.size())) {
+        pause_requested_ = true;
+        pause_.set_sensitive(false);
+        set_message("Pause requested. Agemir will stop at the next safe checkpoint.");
+    } else {
+        set_message(error[0] ? error.data() : "Could not request a pause.", true);
+    }
 }
