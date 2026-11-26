@@ -4,3 +4,58 @@ resources/config/config.txt
 project_template.txt
 .agemir-codex/
 .codex/
+
+# Local Xerj node data, logs, and caches (keep outside source control).
+.xerj/
+xerj-data/
+xerj-*.log
+node.log
+
+# Meson and Ninja build state.
+/build/
+/build-*/
+/builddir/
+/meson-private/
+/meson-logs/
+/compile_commands.json
+.ninja_deps
+.ninja_log
+
+# Compiler outputs.
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+
+# Runtime logs and local configuration.
+*.log
+
+# Test scratch space and packaging output. Recipes and release metadata remain tracked.
+/.smoke-*/
+/tmp-*/
+/dist/
+/out/
+/AppDir/
+/packaging/staging/
+/packaging/output/
+*.AppImage
+*.dmg
+*.msi
+*.pkg
+
+# Caches and editor/OS metadata.
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+.DS_Store
+.idea/
+.vscode/
+*~
+*.swp
+*.swo
