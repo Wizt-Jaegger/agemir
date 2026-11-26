@@ -11,7 +11,7 @@ if [[ "$(uname -s)" != Linux ]]; then
     echo "AppImage builds must run on Linux." >&2
     exit 2
 fi
-for command_name in meson ninja linuxdeploy; do
+for command_name in meson ninja linuxdeploy linuxdeploy-plugin-gtk.sh; do
     command -v "$command_name" >/dev/null || {
         echo "Missing required command: $command_name" >&2
         exit 2
@@ -37,7 +37,7 @@ if [[ -z "$version" ]]; then
     exit 2
 fi
 
-OUTPUT="$output_dir/Agemir-$version-x86_64.AppImage" \
+DEPLOY_GTK_VERSION=4 OUTPUT="$output_dir/Agemir-$version-x86_64.AppImage" \
     linuxdeploy --appdir "$appdir" \
         --desktop-file "$script_dir/agemir.desktop" \
         --plugin gtk --output appimage

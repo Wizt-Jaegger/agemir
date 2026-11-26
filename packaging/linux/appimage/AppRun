@@ -2,6 +2,14 @@
 set -eu
 
 APPDIR="${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}"
+export APPDIR
+
+if [ -d "$APPDIR/apprun-hooks" ]; then
+    for hook in "$APPDIR"/apprun-hooks/*.sh; do
+        [ -r "$hook" ] && . "$hook"
+    done
+fi
+
 export AGEMIR_RESOURCE_DIR="$APPDIR/usr/share/agemir/resources"
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME:?HOME is not set}/.config}"
 export AGEMIR_CONFIG_FILE="$XDG_CONFIG_HOME/agemir/config.txt"

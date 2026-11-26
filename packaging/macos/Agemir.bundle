@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<app-bundle>
+  <meta>
+    <prefix>${env:JHBUILD_PREFIX}</prefix>
+    <destination overwrite="yes">${env:AGEMIR_BUNDLE_DEST}</destination>
+    <run-install-name-tool/>
+    <gtk>gtk4</gtk>
+  </meta>
+  <plist>${project}/Info.plist</plist>
+  <launcher-script>${project}/launcher.sh</launcher-script>
+  <main-binary>${prefix}/bin/agemir-bin</main-binary>
+  <data dest="${bundle}/Contents/Resources/agemir/resources">
+    ${prefix}/share/agemir/resources
+  </data>
+</app-bundle>
