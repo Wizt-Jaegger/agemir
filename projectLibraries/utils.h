@@ -210,6 +210,19 @@ void join_path(char* out, size_t size, const char* base, const char* name) {
     snprintf(out, size, "%s/%s", base, name);
 }
 
+/* Copy text into a fixed path buffer while always leaving it terminated. */
+void copy_path_text(char* out, size_t size, const char* text) {
+    if (!out || size == 0) return;
+    if (!text) {
+        out[0] = '\0';
+        return;
+    }
+    size_t length = strlen(text);
+    if (length >= size) length = size - 1;
+    memcpy(out, text, length);
+    out[length] = '\0';
+}
+
 void resolve_path(const char* path, char* resolved, size_t size) {
     char buffer[4096];
 #if defined(_WIN32)
@@ -217,9 +230,9 @@ void resolve_path(const char* path, char* resolved, size_t size) {
 #else
     if (realpath(path, buffer)) {
 #endif
-        snprintf(resolved, size, "%s", buffer);
+        copy_path_text(resolved, size, buffer);
     } else {
-        snprintf(resolved, size, "%s", path);
+        copy_path_text(resolved, size, path);
     }
 }
 
@@ -324,7 +337,7 @@ int copy_file(const char* source, const char* destination) {
 
 void make_parent_dirs(const char* file_path) {
     char partial[1024];
-    snprintf(partial, sizeof(partial), "%s", file_path);
+    copy_path_text(partial, sizeof(partial), file_path);
 
     for (char* c = partial + 1; *c; c++) {
         if (*c == '/' || *c == '\\') {

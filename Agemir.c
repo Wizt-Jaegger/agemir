@@ -1,3 +1,4 @@
+#include "agemir_api.h"
 #include "projectLibraries/utils.h"
 #include "projectLibraries/models.h"
 #include "projectLibraries/project.h"
@@ -335,7 +336,7 @@ void handle_generate(const char* model, int is_auto, int benchmark_rate) {
 // ==========================================
 //      Main Entry
 // ==========================================
-int main() {
+int agemir_cli_main(void) {
     load_language(get_or_prompt_language());
     get_or_prompt_username();
     load_model_catalog();
@@ -394,3 +395,9 @@ int main() {
     printf("\n%s %s!\n", ui_strings[18], username);
     return 0;
 }
+
+#ifndef AGEMIR_NO_MAIN
+int main(void) {
+    return agemir_cli_main();
+}
+#endif
