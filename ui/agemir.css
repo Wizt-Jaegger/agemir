@@ -1,7 +1,15 @@
-window { background: @window_bg_color; }
-.page { margin: 24px; }
-.card { padding: 18px; border-radius: 14px; background: alpha(@card_bg_color, 0.92); }
-.heading { font-size: 1.5rem; font-weight: 700; }
-.muted { color: @insensitive_fg_color; }
-.status-ok { color: #2a7b48; font-weight: 600; }
-.status-error { color: #b42318; font-weight: 600; }
+window, .page { background: #282a36; color: #f8f8f2; }
+headerbar { background: #21222c; border-bottom: 1px solid #44475a; }
+.page { min-width: 620px; }
+.title { font-size: 2rem; font-weight: 800; color: #b5deff; }
+.subtitle, .muted { color: #b0b7d3; }
+.field-label { font-weight: 700; color: #f8f8f2; margin-top: 8px; }
+entry, textview, dropdown, listbox { background: #191a21; color: #f8f8f2; border: 1px solid #44475a; border-radius: 10px; padding: 8px; }
+button.menu-choice { min-height: 42px; background: #21222c; color: #f8f8f2; border: 1px solid #44475a; border-radius: 14px; font-weight: 700; text-align: left; }
+button.menu-choice:hover { background: #343746; border-color: #8ccbff; }
+button.suggested-action { background: #8ccbff; color: #191a21; border-radius: 10px; font-weight: 800; }
+button:focus-visible, entry:focus, textview:focus, dropdown:focus { outline: 2px solid #b5deff; outline-offset: 2px; }
+listbox row { padding: 10px; border-bottom: 1px solid #44475a; }
+listbox row:selected { background: #44475a; color: #f8f8f2; }
+.status-ok { color: #50fa7b; font-weight: 700; }
+.status-error { color: #ff79c6; font-weight: 700; }

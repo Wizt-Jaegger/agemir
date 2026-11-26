@@ -42,6 +42,17 @@ int main(void) {
     char value[64] = "unchanged";
     assert(agemir_runtime_get_setting(runtime, "model", value, sizeof(value)));
     assert(value[0]);
+    assert(agemir_runtime_set_setting(runtime, "model", "auto"));
+    int automatic = 0;
+    char resolved_model[64] = "";
+    assert(agemir_runtime_current_model(runtime, resolved_model, sizeof(resolved_model),
+                                        &automatic));
+    assert(automatic);
+    assert(resolved_model[0]);
+    assert(agemir_runtime_model_count(runtime) > 0);
+    AgemirModel catalog_model;
+    assert(agemir_runtime_model_at(runtime, 0, &catalog_model));
+    assert(catalog_model.tag[0]);
     assert(!agemir_runtime_get_setting(runtime, "model", value, 1));
     assert(value[0] == '\0');
     assert(agemir_runtime_set_setting(runtime, "project_path", "/tmp/agemir work"));

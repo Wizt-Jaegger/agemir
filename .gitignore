@@ -24,6 +24,7 @@ node.log
 # Compiler outputs.
 *.o
 *.obj
+*.d
 *.a
 *.so
 *.so.*
@@ -37,6 +38,9 @@ node.log
 # Test scratch space and packaging output. Recipes and release metadata remain tracked.
 /.smoke-*/
 /tmp-*/
+/api-smoke-resources/
+/api-smoke-project/
+/api-simulation-project/
 /dist/
 /out/
 /AppDir/

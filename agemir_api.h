@@ -17,7 +17,10 @@ typedef struct AgemirRuntime AgemirRuntime;
 
 typedef enum AgemirOperation {
     AGEMIR_RUN_PROJECT = 1,
-    AGEMIR_GENERATE_PROJECT = 2
+    AGEMIR_GENERATE_PROJECT = 2,
+    AGEMIR_GENERATE_TEMPLATE = 3,
+    AGEMIR_IMPORT_TEMPLATE = 4,
+    AGEMIR_RUN_BENCHMARK = 5
 } AgemirOperation;
 
 typedef struct AgemirRequest {
@@ -41,6 +44,14 @@ typedef struct AgemirProject {
     char name[64];
     char path[512];
 } AgemirProject;
+
+typedef struct AgemirModel {
+    char tag[64];
+    int min_ram_gb;
+    int fits;
+    float estimated_tokens_per_second;
+    char note[128];
+} AgemirModel;
 
 /*
  * This C ABI has no GTK/C++ types and allocates no caller-owned result buffers.
@@ -68,6 +79,12 @@ int agemir_runtime_ollama_available(void);
 int agemir_runtime_project_count(AgemirRuntime *runtime);
 int agemir_runtime_project_at(AgemirRuntime *runtime, int index,
                               AgemirProject *project);
+/* Catalog data is a copied snapshot for native selectors; index is zero-based. */
+int agemir_runtime_model_count(AgemirRuntime *runtime);
+int agemir_runtime_model_at(AgemirRuntime *runtime, int index, AgemirModel *model);
+/* Resolves the configured automatic choice through the existing catalog logic. */
+int agemir_runtime_current_model(AgemirRuntime *runtime, char *tag, size_t tag_size,
+                                 int *is_automatic);
 
 /*
  * execute is synchronous; each request string must be NUL-terminated and stay

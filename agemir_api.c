@@ -136,6 +136,30 @@ int agemir_runtime_project_at(AgemirRuntime *runtime, int index,
                              project->path, sizeof(project->path));
 }
 
+int agemir_runtime_model_count(AgemirRuntime *runtime) {
+    return runtime ? catalog_count : -1;
+}
+
+int agemir_runtime_model_at(AgemirRuntime *runtime, int index, AgemirModel *model) {
+    if (!runtime || !model || index < 0 || index >= catalog_count) return 0;
+    const ModelInfo *source = &catalog[index];
+    memset(model, 0, sizeof(*model));
+    snprintf(model->tag, sizeof(model->tag), "%s", source->tag);
+    model->min_ram_gb = source->min_ram_gb;
+    model->fits = model_fits(source, total_ram_mb());
+    model->estimated_tokens_per_second = estimated_speed(runtime->benchmark_tps, source);
+    snprintf(model->note, sizeof(model->note), "%s", source->note);
+    return 1;
+}
+
+int agemir_runtime_current_model(AgemirRuntime *runtime, char *tag, size_t tag_size,
+                                 int *is_automatic) {
+    if (!runtime || !tag || !tag_size || !is_automatic) return 0;
+    char selected[64];
+    current_model(runtime->benchmark_tps, total_ram_mb(), selected, sizeof(selected), is_automatic);
+    return copy_api_text(tag, tag_size, selected);
+}
+
 int agemir_runtime_execute(AgemirRuntime *runtime, const AgemirRequest *request,
                            char *error, size_t error_size) {
     set_api_error(error, error_size, "");
@@ -146,7 +170,8 @@ int agemir_runtime_execute(AgemirRuntime *runtime, const AgemirRequest *request,
 
     char selected_model[64];
     const char *model = request->model;
-    if (!model || !*model) {
+    int is_auto = !model || !*model || strcmp(model, "auto") == 0;
+    if (is_auto) {
         int is_auto = 0;
         current_model(runtime->benchmark_tps, total_ram_mb(), selected_model,
                       sizeof(selected_model), &is_auto);
@@ -192,12 +217,48 @@ int agemir_runtime_execute(AgemirRuntime *runtime, const AgemirRequest *request,
                           "valid project path, name, and description are required");
             return 0;
         }
+        /* Keep the CLI's generation-specific automatic choice. */
+        if (is_auto && total_ram_mb() >= 12 * 1024 && runtime->benchmark_tps >= 10)
+            model = "qwen2.5-coder:7b";
         if (!prepare_api_execution(error, error_size)) return 0;
         if (!generate_project(model, request->project_name, request->project_path,
                               request->description, request->graphical != 0)) {
             set_api_error(error, error_size, "project generation failed; see console output");
             return 0;
         }
+        return 1;
+    }
+    if (request->operation == AGEMIR_GENERATE_TEMPLATE) {
+        if (file_exists(TEMPLATE_OUTPUT)) {
+            set_api_error(error, error_size, "project_template.txt already exists");
+            return 1;
+        }
+        if (!copy_file(TEMPLATE_SOURCE, TEMPLATE_OUTPUT)) {
+            set_api_error(error, error_size, "could not read the bundled project template");
+            return 0;
+        }
+        set_api_error(error, error_size, "Created project_template.txt. Fill it in, then import it.");
+        return 1;
+    }
+    if (request->operation == AGEMIR_IMPORT_TEMPLATE) {
+        if (!request->description || !*request->description || !request->project_path || !*request->project_path) {
+            set_api_error(error, error_size, "template file and project folder are required");
+            return 0;
+        }
+        if (!import_project(request->description, request->project_path)) {
+            set_api_error(error, error_size, "template import failed; see console output");
+            return 0;
+        }
+        return 1;
+    }
+    if (request->operation == AGEMIR_RUN_BENCHMARK) {
+        int rate = run_hardware_benchmark();
+        if (rate < 1) {
+            set_api_error(error, error_size, "hardware benchmark failed; see console output");
+            return 0;
+        }
+        runtime->benchmark_tps = rate;
+        snprintf(error, error_size, "Hardware benchmark completed: %d output tokens/sec.", rate);
         return 1;
     }
     set_api_error(error, error_size, "unsupported operation");
