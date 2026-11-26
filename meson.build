@@ -21,6 +21,13 @@ executable('agemir', ['ui/main.cpp', 'ui/main_window.cpp', resources],
 # Retain a direct C CLI build for distributions and terminal-only development.
 executable('agemir-cli', 'Agemir.c', c_args: ['-DOLLAMA_ENABLED=1'], install: true)
 
+agemir_resource_dir = get_option('datadir') / 'agemir' / 'resources'
+install_data('resources/models.txt', 'resources/internet-sources.txt',
+  install_dir: agemir_resource_dir)
+install_subdir('resources/languages', install_dir: agemir_resource_dir)
+install_subdir('resources/templates', install_dir: agemir_resource_dir)
+install_subdir('resources/UI_templates_Agents', install_dir: agemir_resource_dir)
+
 api_smoke = executable('api-smoke', 'tests/api_smoke.c',
   dependencies: core_dep)
 test('api-smoke', api_smoke)
