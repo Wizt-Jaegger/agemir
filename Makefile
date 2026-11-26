@@ -7,6 +7,7 @@ CORE_OBJECT := $(BUILD_DIR)/agemir_api.o
 CORE_LIBRARY := $(BUILD_DIR)/libagemir_core.a
 CLI := $(BUILD_DIR)/agemir
 API_SMOKE := $(BUILD_DIR)/api-smoke
+API_SIM_SMOKE := $(BUILD_DIR)/api-simulation-smoke
 
 .PHONY: all cli core test-api clean
 
@@ -31,8 +32,11 @@ core: $(CORE_LIBRARY)
 $(API_SMOKE): tests/api_smoke.c agemir_api.h $(CORE_OBJECT) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< $(CORE_OBJECT) -o $@
 
-test-api: $(API_SMOKE)
-	tmp=$$(mktemp -d); cp -R resources $$tmp/resources; (cd $$tmp && $(abspath $(API_SMOKE))); status=$$?; rm -rf $$tmp; exit $$status
+$(API_SIM_SMOKE): tests/api_simulation_smoke.c agemir_api.c agemir_api.h Agemir.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -DOLLAMA_ENABLED=0 -pthread tests/api_simulation_smoke.c agemir_api.c -o $@
+
+test-api: $(API_SMOKE) $(API_SIM_SMOKE)
+	tmp=$$(mktemp -d); cp -R resources $$tmp/resources; (cd $$tmp && $(abspath $(API_SMOKE)) && $(abspath $(API_SIM_SMOKE))); status=$$?; rm -rf $$tmp; exit $$status
 
 clean:
 	rm -rf $(BUILD_DIR)

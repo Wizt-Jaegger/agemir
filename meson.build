@@ -24,3 +24,10 @@ executable('agemir-cli', 'Agemir.c', c_args: ['-DOLLAMA_ENABLED=1'], install: tr
 api_smoke = executable('api-smoke', 'tests/api_smoke.c',
   dependencies: core_dep)
 test('api-smoke', api_smoke)
+
+api_simulation_smoke = executable('api-simulation-smoke',
+  ['tests/api_simulation_smoke.c', 'agemir_api.c'],
+  c_args: ['-DOLLAMA_ENABLED=0'],
+  dependencies: [threads],
+  include_directories: include_directories('.'))
+test('api-simulation-smoke', api_simulation_smoke)
